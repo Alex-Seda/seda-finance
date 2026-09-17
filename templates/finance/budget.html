@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Budget · Seda Finance{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Zero-based budget</p><h1>Budget</h1>{% if period %}<p class="muted">{{ period.start_date }} – {{ period.end_date }}</p>{% endif %}</div></div>
+{% if period %}<form method="post">{% csrf_token %}<div class="table-wrap"><table><thead><tr><th>Envelope</th><th>Assigned</th><th>Spent</th><th>Remaining</th></tr></thead><tbody>{% for envelope in envelopes %}<tr><td><strong>{{ envelope.category.name }}</strong></td><td><input class="money" name="assigned_{{ envelope.pk }}" value="{{ envelope.assigned_amount|floatformat:2 }}"></td><td>${{ envelope.spent_amount|floatformat:2 }}</td><td class="{% if envelope.is_overspent %}danger{% endif %}">${{ envelope.remaining_amount|floatformat:2 }}</td></tr>{% endfor %}</tbody></table></div><button class="button" type="submit">Save assignments</button></form>{% else %}<div class="empty">Create a BudgetPeriod and envelopes in the admin to start budgeting.</div>{% endif %}
+{% endblock %}

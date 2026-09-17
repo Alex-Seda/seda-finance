@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Accounts · Seda Finance{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Connected accounts</p><h1>Accounts</h1><p class="muted">Plaid connection and reconnect actions will appear here once integration is configured.</p></div></div>
+<div class="grid">{% for account in accounts %}<div class="card"><div class="row"><strong>{{ account.institution_name }}</strong><span class="status">{{ account.get_account_type_display }}</span></div><h2>{{ account.name }}{% if account.mask %} ····{{ account.mask }}{% endif %}</h2><strong class="balance">${{ account.current_balance|floatformat:2 }}</strong><small>Last synced: {{ account.last_synced_at|default:"Never" }}</small></div>{% empty %}<div class="empty">No accounts connected yet. Plaid Link will be added after credentials are configured.</div>{% endfor %}</div>
+{% endblock %}

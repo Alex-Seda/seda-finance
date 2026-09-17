@@ -1,0 +1,27 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Seda Finance{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'finance/app.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'dashboard' %}">Seda Finance</a>
+    <nav>
+      <a href="{% url 'dashboard' %}">Dashboard</a>
+      <a href="{% url 'review-queue' %}">Review{% if review_count %} <span class="badge">{{ review_count }}</span>{% endif %}</a>
+      <a href="{% url 'transactions' %}">Transactions</a>
+      <a href="{% url 'budget' %}">Budget</a>
+      <a href="{% url 'rules' %}">Rules</a>
+      <a href="{% url 'accounts' %}">Accounts</a>
+    </nav>
+  </header>
+  <main class="container">
+    {% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Transactions · Seda Finance{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Ledger</p><h1>Transactions</h1></div></div>
+<form class="search" method="get"><input name="q" value="{{ query }}" placeholder="Search merchant, account, or notes"><button class="button" type="submit">Search</button></form>
+<div class="table-wrap"><table><thead><tr><th>Date</th><th>Merchant</th><th>Account</th><th>Status</th><th>Category</th><th class="amount">Amount</th></tr></thead><tbody>
+{% for transaction in transactions %}<tr><td>{{ transaction.date }}</td><td><strong>{{ transaction.merchant_name }}</strong></td><td>{{ transaction.account.name }}</td><td><span class="status">{{ transaction.get_status_display }}</span></td><td>{{ transaction.category|default:"Needs review" }}</td><td class="amount">${{ transaction.amount|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="6" class="empty">No matching transactions.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}
