@@ -5,6 +5,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Seda Finance{% endblock %}</title>
+  <script>
+    (() => {
+      const theme = localStorage.getItem("theme") || "auto";
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
   <link rel="stylesheet" href="{% static 'finance/app.css' %}">
 </head>
 <body>
@@ -23,11 +29,16 @@
           <button type="submit" class="nav-button">Log out</button>
         </form>
       {% endif %}
+      <button class="theme-toggle" type="button" aria-label="Toggle color theme">
+        <span class="theme-icon" aria-hidden="true">◐</span>
+        <span class="theme-label">Auto</span>
+      </button>
     </nav>
   </header>
   <main class="container">
     {% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}
     {% block content %}{% endblock %}
   </main>
+  <script src="{% static 'finance/app.js' %}"></script>
 </body>
 </html>
