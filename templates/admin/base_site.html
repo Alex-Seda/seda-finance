@@ -1,0 +1,16 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} · Seda Finance{% endblock %}
+
+{% block branding %}
+<a href="{% url 'admin:index' %}" class="admin-brand">
+  <span class="admin-brand-mark">S</span>
+  <span>Seda Finance</span>
+</a>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'finance/admin.css' %}">
+{% endblock %}

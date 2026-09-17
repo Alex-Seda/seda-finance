@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
@@ -8,6 +9,7 @@ from django.views.decorators.http import require_http_methods
 from .models import Account, BudgetPeriod, Category, Envelope, Rule, Transaction
 
 
+@login_required
 def dashboard(request):
     recent_transactions = Transaction.objects.select_related("account", "category")[:8]
     review_count = Transaction.objects.filter(needs_review=True).count()
@@ -29,6 +31,7 @@ def dashboard(request):
 
 
 @require_http_methods(["GET", "POST"])
+@login_required
 def review_queue(request):
     categories = Category.objects.filter(is_active=True)
     if request.method == "POST":
@@ -47,6 +50,7 @@ def review_queue(request):
     })
 
 
+@login_required
 def transactions(request):
     query = request.GET.get("q", "").strip()
     transaction_list = Transaction.objects.select_related("account", "category")
@@ -63,6 +67,7 @@ def transactions(request):
 
 
 @require_http_methods(["GET", "POST"])
+@login_required
 def budget(request):
     period = BudgetPeriod.objects.first()
     if request.method == "POST":
@@ -81,6 +86,7 @@ def budget(request):
 
 
 @require_http_methods(["GET", "POST"])
+@login_required
 def rules(request):
     categories = Category.objects.filter(is_active=True)
     accounts = Account.objects.all()
@@ -104,5 +110,6 @@ def rules(request):
     })
 
 
+@login_required
 def accounts(request):
     return render(request, "finance/accounts.html", {"accounts": Account.objects.all()})

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Log in · Seda Finance{% endblock %}
+{% block content %}
+<div class="auth-shell">
+  <section class="auth-card">
+    <p class="eyebrow">Private finances</p>
+    <h1>Welcome back</h1>
+    <p class="muted">Log in to view your accounts, transactions, and budget.</p>
+    {% if form.errors %}
+      <div class="message error">Your username and password did not match. Please try again.</div>
+    {% endif %}
+    <form method="post" action="{% url 'login' %}" class="form-card">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <label for="id_username">Username
+        <input id="id_username" name="username" type="text" autocomplete="username" required autofocus>
+      </label>
+      <label for="id_password">Password
+        <input id="id_password" name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <button class="button" type="submit">Log in</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

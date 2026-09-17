@@ -11,12 +11,18 @@
   <header class="topbar">
     <a class="brand" href="{% url 'dashboard' %}">Seda Finance</a>
     <nav>
-      <a href="{% url 'dashboard' %}">Dashboard</a>
-      <a href="{% url 'review-queue' %}">Review{% if review_count %} <span class="badge">{{ review_count }}</span>{% endif %}</a>
-      <a href="{% url 'transactions' %}">Transactions</a>
-      <a href="{% url 'budget' %}">Budget</a>
-      <a href="{% url 'rules' %}">Rules</a>
-      <a href="{% url 'accounts' %}">Accounts</a>
+      {% if user.is_authenticated %}
+        <a href="{% url 'dashboard' %}">Dashboard</a>
+        <a href="{% url 'review-queue' %}">Review{% if review_count %} <span class="badge">{{ review_count }}</span>{% endif %}</a>
+        <a href="{% url 'transactions' %}">Transactions</a>
+        <a href="{% url 'budget' %}">Budget</a>
+        <a href="{% url 'rules' %}">Rules</a>
+        <a href="{% url 'accounts' %}">Accounts</a>
+        <form method="post" action="{% url 'logout' %}" class="logout-form">
+          {% csrf_token %}
+          <button type="submit" class="nav-button">Log out</button>
+        </form>
+      {% endif %}
     </nav>
   </header>
   <main class="container">

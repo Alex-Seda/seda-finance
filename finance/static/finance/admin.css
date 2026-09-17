@@ -1,0 +1,347 @@
+:root{
+  --admin-ink:#17211b;
+  --admin-muted:#6b756e;
+  --admin-line:#dde5df;
+  --admin-paper:#f7faf8;
+  --admin-card:#fff;
+  --admin-accent:#176b45;
+  --admin-accent-dark:#0e5133;
+  --admin-danger:#b83a3a;
+}
+html,body{background:var(--admin-paper)!important;color:var(--admin-ink)!important}
+body,#header,#content,#container,.module,#changelist-filter,#toolbar form input{
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+body{color:var(--admin-ink)!important;font-size:14px}
+#header{
+  align-items:center;
+  background:#fff;
+  border-bottom:1px solid var(--admin-line);
+  box-shadow:0 2px 12px rgba(23,33,27,.04);
+  color:var(--admin-ink)!important;
+  display:flex;
+  min-height:72px;
+  padding:0 32px;
+}
+#branding{margin-right:auto}
+.admin-brand{
+  align-items:center;
+  color:var(--admin-accent)!important;
+  display:inline-flex;
+  font-size:20px;
+  font-weight:750;
+  gap:10px;
+  text-decoration:none;
+}
+.admin-brand-mark{
+  align-items:center;
+  background:var(--admin-accent);
+  border-radius:9px;
+  color:#fff;
+  display:inline-flex;
+  font-size:15px;
+  height:32px;
+  justify-content:center;
+  width:32px;
+}
+#user-tools{color:var(--admin-muted)!important;font-size:13px;line-height:1.5}
+#user-tools a{border-bottom:0;color:var(--admin-accent)!important;font-weight:650}
+#user-tools a:hover{color:var(--admin-accent-dark)}
+#nav-sidebar{background:#fff!important;border-right:1px solid var(--admin-line);padding-top:22px}
+#nav-sidebar .module{border:0;box-shadow:none}
+#nav-sidebar .current-app .section,.current-model{background:#e4f3eb!important}
+#nav-sidebar a{color:var(--admin-ink)!important;padding:9px 18px}
+#nav-sidebar a:hover{background:#f0f7f2;color:var(--admin-accent)}
+#content{margin:0 auto;max-width:1320px;padding:34px 32px 64px}
+#content h1{font-size:32px;line-height:1.15;margin:0 0 24px}
+#content h2{font-size:19px}
+.breadcrumbs{
+  background:transparent;
+  color:var(--admin-muted)!important;
+  font-size:13px;
+  padding:18px 32px 0;
+}
+.breadcrumbs a{color:var(--admin-accent)!important}
+.module,#changelist,#changelist-form .results,#content-main>fieldset{
+  background:var(--admin-card);
+  border:1px solid var(--admin-line);
+  border-radius:12px;
+  box-shadow:0 4px 18px rgba(23,33,27,.035);
+  overflow:hidden;
+}
+.module h2,.module caption,.inline-group h2{
+  background:#f0f7f2;
+  color:var(--admin-ink)!important;
+  font-size:13px;
+  letter-spacing:.04em;
+  padding:14px 18px;
+  text-transform:uppercase;
+}
+.module table{width:100%}
+.module th,.module td{background:#fff!important;border-bottom:1px solid var(--admin-line);color:var(--admin-ink)!important;padding:13px 18px}
+.module tr:last-child th,.module tr:last-child td{border-bottom:0}
+.module th a,.object-tools a,.addlink,.changelink{color:var(--admin-accent)!important}
+.module th a:hover,.object-tools a:hover,.addlink:hover,.changelink:hover{color:var(--admin-accent-dark)}
+a:link,a:visited{color:var(--admin-accent)!important}
+a:hover{color:var(--admin-accent-dark)!important}
+input,textarea,select,.vTextField{
+  background:#fff!important;
+  border:1px solid #cbd7ce;
+  border-radius:7px;
+  color:var(--admin-ink)!important;
+  font:inherit;
+  padding:9px 10px;
+}
+option{background:#fff!important;color:var(--admin-ink)!important}
+input:focus,textarea:focus,select:focus{
+  border-color:var(--admin-accent);
+  box-shadow:0 0 0 3px rgba(23,107,69,.12);
+  outline:0;
+}
+input[type=submit],button,.submit-row input,.button,.object-tools a{
+  background:var(--admin-accent);
+  border:0;
+  border-radius:7px;
+  color:#fff!important;
+  cursor:pointer;
+  font-weight:650;
+  padding:10px 15px;
+}
+input[type=submit]:hover,button:hover,.submit-row input:hover,.button:hover,.object-tools a:hover{
+  background:var(--admin-accent-dark);
+}
+.object-tools{margin-top:0}
+.object-tools a.addlink{padding-left:15px}
+.submit-row{background:#f0f7f2!important;border:0;padding:16px 18px}
+.submit-row .deletelink{background:#fff0f0;color:var(--admin-danger)!important}
+.submit-row .deletelink:hover{background:#ffe2e2}
+.messagelist{margin:0 0 20px;padding:0}
+.messagelist li{border:1px solid #b9ddc8;border-radius:8px;margin-bottom:10px;padding:12px 16px}
+.messagelist .error{background:#fff0f0;border-color:#f2c1c1}
+.messagelist .success{background:#e4f3eb}
+#changelist-filter{background:#fff!important;color:var(--admin-ink)!important;margin-left:20px;padding:16px}
+#changelist-filter h2{background:none;color:var(--admin-ink)!important;padding:0 0 10px}
+#changelist-filter h3{color:var(--admin-muted)!important;font-size:12px;text-transform:uppercase}
+#changelist-filter li a{color:var(--admin-ink)!important}
+#changelist-filter li.selected a{color:var(--admin-accent)!important;font-weight:700}
+.paginator{padding:14px 18px}
+.paginator a{border-radius:6px}
+#footer{padding:20px}
+@media(max-width:800px){
+  #header{align-items:flex-start;flex-direction:column;gap:12px;padding:18px 20px}
+  #user-tools{margin-left:0}
+  #content{padding:24px 16px 48px}
+  .breadcrumbs{padding:14px 16px 0}
+  #changelist-filter{margin:16px 0 0}
+  .object-tools{margin-bottom:16px}
+}
+
+/* Keep Django's built-in theme switcher and every admin surface on the same
+   palette. The explicit theme selectors also override Django's dashboard
+   defaults for the app list and recent-actions panel. */
+:root,
+html[data-theme="light"]{
+  --admin-ink:#17211b;
+  --admin-muted:#526158;
+  --admin-line:#d5e0d8;
+  --admin-paper:#f4f8f5;
+  --admin-card:#fff;
+  --admin-soft:#edf5ef;
+  --admin-hover:#e3f1e7;
+  --admin-input:#fff;
+  --admin-button:#176b45;
+  --admin-button-hover:#0e5133;
+  --body-fg:var(--admin-ink);
+  --body-bg:var(--admin-paper);
+  --body-quiet-color:var(--admin-muted);
+  --body-medium-color:#36443b;
+  --body-loud-color:#0b120e;
+  --header-bg:#fff;
+  --header-color:var(--admin-ink);
+  --header-link-color:var(--admin-accent);
+  --header-branding-color:var(--admin-accent);
+  --breadcrumbs-bg:var(--admin-paper);
+  --breadcrumbs-fg:var(--admin-muted);
+  --breadcrumbs-link-fg:var(--admin-accent);
+  --link-fg:var(--admin-accent);
+  --link-hover-color:var(--admin-accent-dark);
+  --hairline-color:var(--admin-line);
+  --border-color:#bdccc2;
+  --darkened-bg:var(--admin-soft);
+  --selected-bg:var(--admin-hover);
+  --button-bg:var(--admin-button);
+  --button-hover-bg:var(--admin-button-hover);
+  color-scheme:light;
+}
+
+html[data-theme="dark"]{
+  --admin-ink:#edf7f0;
+  --admin-muted:#b4c4b9;
+  --admin-line:#35483c;
+  --admin-paper:#101712;
+  --admin-card:#18231c;
+  --admin-soft:#202e25;
+  --admin-hover:#294234;
+  --admin-input:#17221b;
+  --admin-button:#4fbd7e;
+  --admin-button-hover:#6bd596;
+  --admin-accent:#73d69a;
+  --admin-accent-dark:#a0edbc;
+  --body-fg:var(--admin-ink);
+  --body-bg:var(--admin-paper);
+  --body-quiet-color:var(--admin-muted);
+  --body-medium-color:#d0e1d5;
+  --body-loud-color:#fff;
+  --header-bg:#17231b;
+  --header-color:var(--admin-ink);
+  --header-link-color:#d9f8e2;
+  --header-branding-color:#d9f8e2;
+  --breadcrumbs-bg:var(--admin-paper);
+  --breadcrumbs-fg:var(--admin-muted);
+  --breadcrumbs-link-fg:var(--admin-accent);
+  --link-fg:var(--admin-accent);
+  --link-hover-color:var(--admin-accent-dark);
+  --hairline-color:var(--admin-line);
+  --border-color:#486052;
+  --darkened-bg:var(--admin-soft);
+  --selected-bg:var(--admin-hover);
+  --button-bg:var(--admin-button);
+  --button-hover-bg:var(--admin-button-hover);
+  color-scheme:dark;
+}
+
+@media (prefers-color-scheme:dark){
+  html[data-theme="auto"]{
+    --admin-ink:#edf7f0;
+    --admin-muted:#b4c4b9;
+    --admin-line:#35483c;
+    --admin-paper:#101712;
+    --admin-card:#18231c;
+    --admin-soft:#202e25;
+    --admin-hover:#294234;
+    --admin-input:#17221b;
+    --admin-button:#4fbd7e;
+    --admin-button-hover:#6bd596;
+    --admin-accent:#73d69a;
+    --admin-accent-dark:#a0edbc;
+    --body-fg:var(--admin-ink);
+    --body-bg:var(--admin-paper);
+    --body-quiet-color:var(--admin-muted);
+    --body-medium-color:#d0e1d5;
+    --body-loud-color:#fff;
+    --header-bg:#17231b;
+    --header-color:var(--admin-ink);
+    --header-link-color:#d9f8e2;
+    --header-branding-color:#d9f8e2;
+    --breadcrumbs-bg:var(--admin-paper);
+    --breadcrumbs-fg:var(--admin-muted);
+    --breadcrumbs-link-fg:var(--admin-accent);
+    --link-fg:var(--admin-accent);
+    --link-hover-color:var(--admin-accent-dark);
+    --hairline-color:var(--admin-line);
+    --border-color:#486052;
+    --darkened-bg:var(--admin-soft);
+    --selected-bg:var(--admin-hover);
+    --button-bg:var(--admin-button);
+    --button-hover-bg:var(--admin-button-hover);
+    color-scheme:dark;
+  }
+}
+
+html,body,#container,.main,#content,.content{
+  background:var(--admin-paper)!important;
+  color:var(--admin-ink)!important;
+}
+#header{
+  background:var(--header-bg)!important;
+  color:var(--header-color)!important;
+}
+#header a:link,#header a:visited,#logout-form button{
+  color:var(--header-link-color)!important;
+}
+#user-tools{color:var(--header-color)!important}
+#user-tools a,#logout-form button{color:var(--header-link-color)!important}
+#logout-form button{
+  background:transparent!important;
+  border:1px solid currentColor!important;
+  border-radius:6px;
+  margin-left:6px;
+  padding:5px 9px!important;
+}
+#logout-form button:hover{
+  background:var(--admin-hover)!important;
+  border-color:var(--header-link-color)!important;
+}
+#nav-sidebar,.module,#changelist,#changelist-form .results,#content-related{
+  background:var(--admin-card)!important;
+  color:var(--admin-ink)!important;
+  border-color:var(--admin-line)!important;
+}
+#nav-sidebar .module{background:transparent!important}
+#nav-sidebar .current-app .section,#nav-sidebar .current-model{
+  background:var(--admin-hover)!important;
+  color:var(--admin-ink)!important;
+}
+#nav-sidebar a,#nav-sidebar th,#nav-sidebar td{
+  color:var(--admin-ink)!important;
+  background:transparent!important;
+}
+#nav-sidebar a:hover{background:var(--admin-hover)!important;color:var(--admin-ink)!important}
+.module h2,.module caption,.inline-group h2{
+  background:var(--admin-soft)!important;
+  color:var(--admin-ink)!important;
+}
+.module table,.module tbody,.module tr,.module th,.module td,
+.dashboard .module table tr:nth-child(even),
+.dashboard .module table tr:nth-child(odd){
+  background:var(--admin-card)!important;
+  color:var(--admin-ink)!important;
+}
+.module th,.module td{border-color:var(--admin-line)!important}
+.module a,.module th a,.module td a{color:var(--admin-accent)!important}
+#changelist .results table,
+#changelist .results tbody,
+#changelist .results tr,
+#changelist .results th,
+#changelist .results td{
+  background:var(--admin-card)!important;
+  color:var(--admin-ink)!important;
+}
+#changelist .results tr.selected,
+#changelist .results tr:hover{
+  background:var(--admin-hover)!important;
+}
+#changelist .results th,#changelist .results td{
+  border-color:var(--admin-line)!important;
+}
+#changelist .paginator{background:var(--admin-card)!important;color:var(--admin-ink)!important}
+#content-related{background:var(--admin-soft)!important}
+#content-related .module{background:transparent!important;box-shadow:none}
+#content-related .module h2{
+  background:transparent!important;
+  border-color:var(--admin-line)!important;
+  color:var(--admin-ink)!important;
+}
+#content-related h3,#content-related p,#content-related li,
+#content-related .actionlist a{color:var(--admin-muted)!important}
+input,textarea,select,.vTextField{
+  background:var(--admin-input)!important;
+  border-color:var(--border-color)!important;
+  color:var(--admin-ink)!important;
+}
+option{background:var(--admin-input)!important;color:var(--admin-ink)!important}
+input[type=submit],button,.submit-row input,.button,.object-tools a{
+  background:var(--admin-button)!important;
+  color:#07130b!important;
+}
+input[type=submit]:hover,button:hover,.submit-row input:hover,.button:hover,.object-tools a:hover{
+  background:var(--admin-button-hover)!important;
+}
+.theme-toggle{
+  background:transparent!important;
+  border:0!important;
+  color:var(--header-link-color)!important;
+  margin:0 0 0 8px!important;
+  padding:4px!important;
+}
+.theme-toggle svg{fill:var(--header-link-color)!important;color:var(--header-bg)!important}
