@@ -3,10 +3,11 @@
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">Overview</p><h1>Good evening</h1></div><a class="button" href="{% url 'review-queue' %}">Review queue{% if review_count %} ({{ review_count }}){% endif %}</a></div>
 <section class="stats">
-  <div class="card"><span>Account balance</span><strong>${{ account_balance|floatformat:2 }}</strong></div>
+  <div class="card"><span>Cash balance</span><strong>${{ account_balance|floatformat:2 }}</strong><small>Checking and savings</small></div>
+  <div class="card"><span>Safe to spend</span><strong>${{ safe_cash|floatformat:2 }}</strong><small>After pending outflows</small></div>
   <div class="card"><span>Needs review</span><strong>{{ review_count }}</strong></div>
-  <div class="card"><span>Budget period</span><strong>{% if current_period %}{{ current_period.start_date|date:"M j" }}{% else %}Not set{% endif %}</strong></div>
 </section>
+<div class="card"><div class="row"><div><span>Expected income this month</span><strong>${{ expected_income|floatformat:2 }}</strong></div><div><span>Ready to assign</span><strong>${{ ready_to_assign|floatformat:2 }}</strong></div><div><span>Forecast cash</span><strong>${{ forecast_cash|floatformat:2 }}</strong></div></div></div>
 <div class="section-heading"><h2>Envelopes</h2><a href="{% url 'budget' %}">Manage budget →</a></div>
 <div class="grid">
 {% for envelope in envelopes %}<div class="card"><div class="row"><strong>{{ envelope.category.name }}</strong><span class="{% if envelope.is_overspent %}danger{% endif %}">${{ envelope.remaining_amount|floatformat:2 }}</span></div><small>Remaining · ${{ envelope.spent_amount|floatformat:2 }} spent</small></div>{% empty %}<div class="empty">No budget period or envelopes yet. Use the admin to create your first budget.</div>{% endfor %}

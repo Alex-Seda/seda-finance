@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Budget · Seda Finance{% endblock %}
 {% block content %}
-<div class="page-heading"><div><p class="eyebrow">Zero-based budget</p><h1>Budget</h1>{% if period %}<p class="muted">{{ period.start_date }} – {{ period.end_date }}</p>{% endif %}</div></div>
+<div class="page-heading"><div><p class="eyebrow">Zero-based budget</p><h1>Budget</h1>{% if period %}<p class="muted">{{ period.start_date }} – {{ period.end_date }}</p>{% endif %}</div><a class="button" href="{% url 'planning' %}">Paycheck planning</a></div>
+{% if period %}<div class="stats"><div class="card"><span>Posted income</span><strong>${{ period.posted_income|floatformat:2 }}</strong></div><div class="card"><span>Expected income</span><strong>${{ expected_income|floatformat:2 }}</strong></div><div class="card"><span>Ready to assign</span><strong>${{ period.ready_to_assign|floatformat:2 }}</strong></div></div>{% endif %}
 {% if period %}<form method="post">{% csrf_token %}<div class="table-wrap"><table><thead><tr><th>Envelope</th><th>Assigned</th><th>Spent</th><th>Remaining</th></tr></thead><tbody>{% for envelope in envelopes %}<tr><td><strong>{{ envelope.category.name }}</strong></td><td><input class="money" name="assigned_{{ envelope.pk }}" value="{{ envelope.assigned_amount|floatformat:2 }}"></td><td>${{ envelope.spent_amount|floatformat:2 }}</td><td class="{% if envelope.is_overspent %}danger{% endif %}">${{ envelope.remaining_amount|floatformat:2 }}</td></tr>{% endfor %}</tbody></table></div><button class="button" type="submit">Save assignments</button></form>{% else %}<div class="empty">Create a BudgetPeriod and envelopes in the admin to start budgeting.</div>{% endif %}
 {% endblock %}

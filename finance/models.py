@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.core.validators import MinValueValidator
 from django.db import models
-from django.db.models import Sum
+from django.db.models import Q, Sum
 
 
 class Account(models.Model):
@@ -32,6 +32,13 @@ class Account(models.Model):
         suffix = f" (...{self.mask})" if self.mask else ""
         return f"{self.institution_name}: {self.name}{suffix}"
 
+    @property
+    def is_cash_account(self):
+        return self.account_type in {
+            self.AccountType.CHECKING,
+            self.AccountType.SAVINGS,
+        }
+
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -52,6 +59,12 @@ class Transaction(models.Model):
         PENDING = "pending", "Pending"
         POSTED = "posted", "Posted"
 
+    class Kind(models.TextChoices):
+        EXPENSE = "expense", "Expense"
+        INCOME = "income", "Income"
+        TRANSFER = "transfer", "Transfer"
+        ADJUSTMENT = "adjustment", "Adjustment"
+
     plaid_transaction_id = models.CharField(max_length=255, unique=True)
     account = models.ForeignKey(
         Account, on_delete=models.CASCADE, related_name="transactions"
@@ -60,6 +73,18 @@ class Transaction(models.Model):
     merchant_name = models.CharField(max_length=255)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     status = models.CharField(max_length=10, choices=Status.choices)
+    kind = models.CharField(
+        max_length=12,
+        choices=Kind.choices,
+        default=Kind.EXPENSE,
+    )
+    transfer_account = models.ForeignKey(
+        Account,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="related_transfers",
+    )
     category = models.ForeignKey(
         Category,
         on_delete=models.SET_NULL,
@@ -85,6 +110,7 @@ class Transaction(models.Model):
         indexes = [
             models.Index(fields=["date", "status"]),
             models.Index(fields=["needs_review", "category"]),
+            models.Index(fields=["kind", "status", "date"]),
         ]
 
     def __str__(self):
@@ -101,6 +127,26 @@ class BudgetPeriod(models.Model):
 
     def __str__(self):
         return f"{self.start_date} to {self.end_date}"
+
+    @property
+    def posted_income(self):
+        total = Transaction.objects.filter(
+            date__gte=self.start_date,
+            date__lte=self.end_date,
+            status=Transaction.Status.POSTED,
+            kind=Transaction.Kind.INCOME,
+        ).aggregate(total=Sum("amount"))["total"]
+        return total or Decimal("0.00")
+
+    @property
+    def ready_to_assign(self):
+        assigned = self.envelopes.aggregate(total=Sum("assigned_amount"))["total"]
+        return self.posted_income + self.rollover_total - (assigned or Decimal("0.00"))
+
+    @property
+    def rollover_total(self):
+        total = self.envelopes.aggregate(total=Sum("rollover_amount"))["total"]
+        return total or Decimal("0.00")
 
 
 class Envelope(models.Model):
@@ -138,6 +184,7 @@ class Envelope(models.Model):
             date__lte=self.budget_period.end_date,
             excluded_from_budget=False,
             status=Transaction.Status.POSTED,
+            kind=Transaction.Kind.EXPENSE,
         ).aggregate(total=Sum("amount"))["total"]
         return total or Decimal("0.00")
 
@@ -200,3 +247,161 @@ class Rule(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Paycheck(models.Model):
+    """An expected paycheck used for planning before income is received."""
+
+    class Status(models.TextChoices):
+        EXPECTED = "expected", "Expected"
+        RECEIVED = "received", "Received"
+
+    pay_date = models.DateField()
+    expected_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    received_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.EXPECTED,
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["pay_date"]
+
+    @property
+    def planned_amount(self):
+        return self.received_amount if self.status == self.Status.RECEIVED else self.expected_amount
+
+    def __str__(self):
+        return f"{self.pay_date}: ${self.planned_amount:.2f}"
+
+
+class PaycheckAllocation(models.Model):
+    paycheck = models.ForeignKey(
+        Paycheck, on_delete=models.CASCADE, related_name="allocations"
+    )
+    category = models.ForeignKey(
+        Category, on_delete=models.PROTECT, related_name="paycheck_allocations"
+    )
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    is_reserve = models.BooleanField(
+        default=False,
+        help_text="Reserve money for a due-soon bill or essential obligation.",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["paycheck", "category"],
+                name="unique_paycheck_category_allocation",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.paycheck} -> {self.category}: ${self.amount:.2f}"
+
+
+class RecurringBill(models.Model):
+    name = models.CharField(max_length=150)
+    category = models.ForeignKey(
+        Category, on_delete=models.PROTECT, related_name="recurring_bills"
+    )
+    account = models.ForeignKey(
+        Account,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recurring_bills",
+    )
+    expected_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    due_day = models.PositiveSmallIntegerField()
+    is_essential = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["due_day", "name"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(due_day__gte=1) & Q(due_day__lte=31),
+                name="recurring_bill_due_day_valid",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.name} (${self.expected_amount:.2f})"
+
+
+class BudgetAllocation(models.Model):
+    """An auditable allocation event for a monthly envelope."""
+
+    budget_period = models.ForeignKey(
+        BudgetPeriod, on_delete=models.CASCADE, related_name="allocation_events"
+    )
+    category = models.ForeignKey(
+        Category, on_delete=models.PROTECT, related_name="budget_allocations"
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    source = models.CharField(max_length=30, default="manual")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class BudgetSettings(models.Model):
+    """Single-user settings for conservative paycheck planning."""
+
+    base_paycheck_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    surplus_responsibilities_percent = models.PositiveSmallIntegerField(default=50)
+    surplus_savings_percent = models.PositiveSmallIntegerField(default=30)
+    surplus_discretionary_percent = models.PositiveSmallIntegerField(default=20)
+    savings_floor = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        percentages = (
+            self.surplus_responsibilities_percent
+            + self.surplus_savings_percent
+            + self.surplus_discretionary_percent
+        )
+        if percentages != 100:
+            raise ValidationError("Surplus allocation percentages must total 100.")
+
+    @classmethod
+    def current(cls):
+        settings, _ = cls.objects.get_or_create(pk=1)
+        return settings

@@ -1,20 +1,40 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q, Sum
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
-from .models import Account, BudgetPeriod, Category, Envelope, Rule, Transaction
+from .budgeting import (
+    cash_balance,
+    expected_income,
+    pending_forecast,
+    pending_outflows,
+    ready_to_assign,
+    safe_cash,
+)
+from .models import (
+    Account,
+    BudgetAllocation,
+    BudgetPeriod,
+    Category,
+    Envelope,
+    Paycheck,
+    RecurringBill,
+    Rule,
+    Transaction,
+)
 
 
 @login_required
 def dashboard(request):
     recent_transactions = Transaction.objects.select_related("account", "category")[:8]
     review_count = Transaction.objects.filter(needs_review=True).count()
-    account_balance = Account.objects.aggregate(total=Sum("current_balance"))["total"] or Decimal("0")
     current_period = BudgetPeriod.objects.first()
+    account_balance = cash_balance()
+    safe_to_spend = safe_cash()
+    forecast_cash = pending_forecast()
     envelopes = (
         Envelope.objects.select_related("category", "budget_period")
         .filter(budget_period=current_period)
@@ -25,7 +45,16 @@ def dashboard(request):
         "recent_transactions": recent_transactions,
         "review_count": review_count,
         "account_balance": account_balance,
+        "safe_cash": safe_to_spend,
+        "forecast_cash": forecast_cash,
+        "pending_outflows": pending_outflows(),
         "current_period": current_period,
+        "ready_to_assign": ready_to_assign(current_period) if current_period else Decimal("0"),
+        "expected_income": (
+            expected_income(current_period.start_date, current_period.end_date)
+            if current_period
+            else Decimal("0")
+        ),
         "envelopes": envelopes,
     })
 
@@ -37,9 +66,15 @@ def review_queue(request):
     if request.method == "POST":
         transaction_ids = request.POST.getlist("transaction_ids")
         category_id = request.POST.get("category")
-        category = get_object_or_404(categories, pk=category_id)
+        kind = request.POST.get("kind", Transaction.Kind.EXPENSE)
+        category = get_object_or_404(categories, pk=category_id) if category_id else None
+        if kind == Transaction.Kind.EXPENSE and category is None:
+            messages.error(request, "Choose a category for expense transactions.")
+            return redirect("review-queue")
         Transaction.objects.filter(pk__in=transaction_ids).update(
-            category=category, needs_review=False
+            category=category if kind == Transaction.Kind.EXPENSE else None,
+            kind=kind,
+            needs_review=False,
         )
         messages.success(request, f"{len(transaction_ids)} transaction(s) categorized.")
         return redirect("review-queue")
@@ -77,12 +112,52 @@ def budget(request):
         for envelope in period.envelopes.all():
             value = request.POST.get(f"assigned_{envelope.pk}")
             if value is not None:
-                envelope.assigned_amount = value or Decimal("0")
+                try:
+                    assigned_amount = Decimal(value or "0")
+                except InvalidOperation:
+                    messages.error(
+                        request,
+                        f"Enter a valid amount for {envelope.category.name}.",
+                    )
+                    return redirect("budget")
+                if assigned_amount < 0:
+                    messages.error(
+                        request,
+                        f"Assigned amount for {envelope.category.name} cannot be negative.",
+                    )
+                    return redirect("budget")
+                previous_amount = envelope.assigned_amount
+                envelope.assigned_amount = assigned_amount
                 envelope.save(update_fields=["assigned_amount"])
+                difference = envelope.assigned_amount - previous_amount
+                if difference:
+                    BudgetAllocation.objects.create(
+                        budget_period=period,
+                        category=envelope.category,
+                        amount=difference,
+                        source="manual",
+                    )
         messages.success(request, "Budget assignments updated.")
         return redirect("budget")
     envelopes = period.envelopes.select_related("category") if period else []
-    return render(request, "finance/budget.html", {"period": period, "envelopes": envelopes})
+    return render(
+        request,
+        "finance/budget.html",
+        {
+            "period": period,
+            "envelopes": envelopes,
+            "expected_income": (
+                expected_income(period.start_date, period.end_date)
+                if period
+                else Decimal("0")
+            ),
+            "envelopes": (
+                period.envelopes.select_related("category")
+                if period
+                else []
+            ),
+        },
+    )
 
 
 @require_http_methods(["GET", "POST"])
@@ -113,3 +188,24 @@ def rules(request):
 @login_required
 def accounts(request):
     return render(request, "finance/accounts.html", {"accounts": Account.objects.all()})
+
+
+@login_required
+def planning(request):
+    period = BudgetPeriod.objects.first()
+    paychecks = Paycheck.objects.all()[:8]
+    bills = RecurringBill.objects.filter(is_active=True)
+    return render(
+        request,
+        "finance/planning.html",
+        {
+            "period": period,
+            "paychecks": paychecks,
+            "bills": bills,
+            "expected_income": (
+                expected_income(period.start_date, period.end_date)
+                if period
+                else Decimal("0")
+            ),
+        },
+    )

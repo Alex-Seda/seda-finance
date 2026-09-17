@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">Triage</p><h1>Review queue</h1><p class="muted">Categorize new transactions before they enter your budget.</p></div></div>
 <form method="post">{% csrf_token %}
-<div class="toolbar"><select name="category" required><option value="">Assign category…</option>{% for category in categories %}<option value="{{ category.pk }}">{{ category.name }}</option>{% endfor %}</select><button class="button" type="submit">Categorize selected</button></div>
+<div class="toolbar"><select name="kind" required><option value="expense">Expense</option><option value="income">Income</option><option value="transfer">Transfer</option></select><select name="category"><option value="">Category for expenses…</option>{% for category in categories %}<option value="{{ category.pk }}">{{ category.name }}</option>{% endfor %}</select><button class="button" type="submit">Apply to selected</button></div>
 <div class="table-wrap"><table><thead><tr><th></th><th>Date</th><th>Merchant</th><th>Account</th><th>Amount</th></tr></thead><tbody>
 {% for transaction in transactions %}<tr><td><input type="checkbox" name="transaction_ids" value="{{ transaction.pk }}"></td><td>{{ transaction.date }}</td><td><strong>{{ transaction.merchant_name }}</strong></td><td>{{ transaction.account.name }}</td><td class="amount">${{ transaction.amount|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="5" class="empty">Your review queue is clear.</td></tr>{% endfor %}
 </tbody></table></div></form>

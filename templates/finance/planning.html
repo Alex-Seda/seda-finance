@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Planning · Seda Finance{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Paycheck planner</p><h1>Planning</h1><p class="muted">Plan around biweekly pay while keeping posted cash authoritative.</p></div></div>
+<div class="stats">
+  <div class="card"><span>Expected income this month</span><strong>${{ expected_income|floatformat:2 }}</strong></div>
+  <div class="card"><span>Budget period</span><strong>{% if period %}{{ period.start_date|date:"M j" }} – {{ period.end_date|date:"M j" }}{% else %}Not set{% endif %}</strong></div>
+</div>
+{% if period %}<div class="section-heading"><h2>Safe to spend by envelope</h2><span class="muted">Posted transactions only</span></div>
+<div class="table-wrap"><table><thead><tr><th>Envelope</th><th>Remaining</th></tr></thead><tbody>
+{% for envelope in envelopes %}<tr><td>{{ envelope.category.name }}</td><td class="{% if envelope.is_overspent %}danger{% endif %}">${{ envelope.remaining_amount|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="2" class="empty">Create envelopes for this budget period.</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
+<div class="split">
+  <section><div class="section-heading"><h2>Expected paychecks</h2><a href="{% url 'admin:finance_paycheck_changelist' %}">Manage →</a></div>
+    <div class="table-wrap"><table><thead><tr><th>Date</th><th>Expected</th><th>Status</th></tr></thead><tbody>
+    {% for paycheck in paychecks %}<tr><td>{{ paycheck.pay_date }}</td><td>${{ paycheck.planned_amount|floatformat:2 }}</td><td>{{ paycheck.get_status_display }}</td></tr>{% empty %}<tr><td colspan="3" class="empty">Add expected paychecks in Planning → Manage.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section><div class="section-heading"><h2>Recurring bills</h2><a href="{% url 'admin:finance_recurringbill_changelist' %}">Manage →</a></div>
+    <div class="table-wrap"><table><thead><tr><th>Bill</th><th>Due</th><th>Expected</th></tr></thead><tbody>
+    {% for bill in bills %}<tr><td>{{ bill.name }}</td><td>{{ bill.due_day }}</td><td>${{ bill.expected_amount|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="3" class="empty">Add recurring bills in Planning → Manage.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+</div>
+{% endblock %}

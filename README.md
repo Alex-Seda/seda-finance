@@ -2,7 +2,7 @@
 
 Seda Finance is a self-hosted personal finance application for consolidating bank and credit-card accounts, categorizing transactions, and managing a zero-based envelope budget.
 
-The project is currently an early-stage Django scaffold. The web interface, budgeting data model, review queue, categorization rules, authentication, Docker Compose environment, and Django admin are in place. Plaid Link and live transaction synchronization are intentionally not included yet.
+The project is currently an early-stage Django application. The web interface, budgeting data model, paycheck planning, recurring-bill planning, review queue, categorization rules, authentication, Docker Compose environment, migrations, and Django admin are in place. Plaid Link and live transaction synchronization are intentionally not included yet.
 
 ## Features
 
@@ -10,7 +10,12 @@ The project is currently an early-stage Django scaffold. The web interface, budg
 - Dashboard with account balances, envelope status, recent activity, and review counts
 - Transaction review queue with bulk categorization
 - Searchable transaction history
-- Zero-based budget periods and category envelopes
+- Zero-based calendar-month budget periods and category envelopes
+- Biweekly paycheck planning with expected income, conservative base pay, and recurring bills
+- Safe-to-spend cash view based on checking/savings balances minus pending outflows
+- Manual transaction classification for expenses, income, and transfers
+- Posted-only budget spending with pending-transaction cash forecasting
+- Auditable envelope allocation events
 - Configurable envelope rollover settings
 - Merchant categorization rules with suggest-only and auto-apply modes
 - Django authentication protecting all application pages
@@ -18,6 +23,43 @@ The project is currently an early-stage Django scaffold. The web interface, budg
 - Django admin theme matching the main application
 - PostgreSQL, Redis, Celery worker, and Celery beat services through Docker Compose
 - SQLite fallback for quick local development without containers
+
+## Current implementation status
+
+The application currently supports the v1 financial foundation and is still
+intended for local development or controlled testing. It does **not** yet
+connect to a bank, import transactions automatically, or provide production
+security hardening.
+
+Implemented now:
+
+- Authenticated dashboard, budget, planning, review, transaction, rules, and account pages
+- Single-user USD-oriented data model
+- Calendar-month budget periods
+- Posted income and Ready to Assign calculations
+- Expected paycheck records with received-versus-expected amounts
+- Paycheck allocation records
+- Recurring bills with due days and expected amounts
+- Manual expense, income, and transfer classification
+- Cash balance and safe-to-spend calculations using checking/savings balances minus pending expense outflows
+- Credit-card accounts excluded from the positive cash total
+- Starter category migration
+- Django admin management for all current models
+- Automated finance tests for accounting calculations, validation, authentication, and core POST workflows
+
+Not implemented yet:
+
+- Plaid Link and token exchange
+- Encrypted Plaid access-token handling
+- Automatic account, balance, and transaction synchronization
+- Cursor-based Plaid add/update/remove reconciliation
+- Automatic transaction rule processing during sync
+- Automatic transfer detection
+- Automatic paycheck matching
+- Automatic shortfall recommendations or surplus splitting
+- In-app onboarding and forms for creating accounts, paychecks, bills, and budget periods
+- Two-factor authentication
+- Production HTTPS, Nginx, backups, monitoring, and deployment hardening
 
 ## Requirements
 
@@ -78,6 +120,14 @@ python manage.py runserver
 
 With no `DATABASE_URL` set, Django uses `db.sqlite3` locally. Set `DJANGO_DEBUG=False` explicitly for a non-development deployment.
 
+Run the application checks and tests:
+
+```bash
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py test finance
+```
+
 ## Configuration
 
 Copy the example environment file when using Compose or custom settings:
@@ -123,14 +173,16 @@ The main application is at `/`. The Django admin is at `/admin/`. All finance pa
 
 ## Using the application
 
-1. **Create categories.** Use **Admin → Finance → Categories** to create categories such as Groceries, Rent, Dining, and Subscriptions. Mark budget categories as envelopes and enable rollover where appropriate.
-2. **Create a budget period.** Use **Admin → Finance → Budget periods**, then create one envelope per budgeting category under **Admin → Finance → Envelopes**.
-3. **Review the budget.** Open `/budget/` to update assigned amounts and see spent and remaining amounts.
-4. **Add transactions.** Until Plaid integration is available, add them through **Admin → Finance → Transactions**.
-5. **Categorize transactions.** Leave new transactions marked for review, then open `/review/` and bulk-assign categories.
-6. **Add rules.** Open `/rules/` to create merchant matching rules. New rules default to suggest-only behavior.
-7. **Search activity.** Open `/transactions/` to search transaction history.
-8. **Manage accounts.** Open `/accounts/` for the account overview. Account connection through Plaid is planned but not implemented.
+1. **Create an administrator.** Run `python manage.py createsuperuser`, then sign in at `/admin/`.
+2. **Review starter categories.** The first migration creates Housing, Utilities, Groceries, Dining, Transportation, Healthcare, Subscriptions, Personal, Savings, Debt payments, Investing, and Other. Customize them under **Admin → Finance → Categories** and mark budget categories as envelopes.
+3. **Create a budget period.** Use **Admin → Finance → Budget periods**, then create one envelope per budgeting category under **Admin → Finance → Envelopes**.
+4. **Set up planning.** Add expected biweekly paychecks and recurring bills under `/planning/` using the admin links. Configure the manual base paycheck and surplus percentages under **Admin → Finance → Budget settings**.
+5. **Review the budget.** Open `/budget/` to update assignments and see posted income, expected income, Ready to Assign, spent, and remaining amounts.
+6. **Add transactions.** Until Plaid integration is available, add them through **Admin → Finance → Transactions**. Set each transaction's kind explicitly when it is income or a transfer.
+7. **Categorize transactions.** Leave new transactions marked for review, then open `/review/` and classify selected items as expenses, income, or transfers. Expense items can be bulk-assigned to a category.
+8. **Add rules.** Open `/rules/` to create merchant matching rules. New rules default to suggest-only behavior.
+9. **Search activity.** Open `/transactions/` to search transaction history.
+10. **Manage accounts.** Open `/accounts/` for the cash/debt account overview. Account connection through Plaid is planned but not implemented.
 
 ## Application URLs
 
@@ -142,6 +194,7 @@ The main application is at `/`. The Django admin is at `/admin/`. All finance pa
 | `/review/` | Transaction review queue |
 | `/transactions/` | Searchable transaction history |
 | `/budget/` | Envelope budget management |
+| `/planning/` | Expected paycheck and recurring bill planning |
 | `/rules/` | Categorization rule management |
 | `/accounts/` | Account overview |
 | `/admin/` | Django administration |
@@ -167,6 +220,8 @@ requirements.txt        Python dependencies
 - Account and transaction creation is currently performed through Django admin.
 - Two-factor authentication, production HTTPS configuration, and deployment hardening still need to be completed.
 - The application is designed for a single user in its current form.
+- The paycheck planner currently stores expected paychecks, allocations, recurring bills, and base-pay settings; automatic paycheck matching and cash-flow recommendations are still pending.
+- The current web UI exposes planning and review workflows, but creation and editing of accounts, paychecks, bills, budget periods, envelopes, and base-pay settings still happens through Django admin.
 
 ## Security notes
 

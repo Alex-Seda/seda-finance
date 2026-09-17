@@ -22,6 +22,7 @@
         <a href="{% url 'review-queue' %}">Review{% if review_count %} <span class="badge">{{ review_count }}</span>{% endif %}</a>
         <a href="{% url 'transactions' %}">Transactions</a>
         <a href="{% url 'budget' %}">Budget</a>
+        <a href="{% url 'planning' %}">Planning</a>
         <a href="{% url 'rules' %}">Rules</a>
         <a href="{% url 'accounts' %}">Accounts</a>
         <form method="post" action="{% url 'logout' %}" class="logout-form">
