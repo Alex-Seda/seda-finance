@@ -73,16 +73,21 @@ Not implemented yet:
 Clone the repository and start the services:
 
 ```bash
+cp .env.example .env
+# Replace every generate-* value with a unique random secret.
 docker compose up --build
 ```
 
-The application will be available at <http://127.0.0.1:8000/>.
+The application will be available at <http://127.0.0.1:8000/> for local
+testing. Production deployments must put Gunicorn behind an HTTPS reverse
+proxy. With `DJANGO_DEBUG=False`, HTTP requests redirect to HTTPS and secure
+cookies are enabled.
 
 Compose starts:
 
 | Service | Purpose |
 | --- | --- |
-| `web` | Django development server |
+| `web` | Gunicorn application server |
 | `db` | PostgreSQL database |
 | `redis` | Celery broker and result backend |
 | `worker` | Background task worker |
@@ -119,7 +124,9 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-With no `DATABASE_URL` set, Django uses `db.sqlite3` locally. Set `DJANGO_DEBUG=False` explicitly for a non-development deployment.
+With no `DATABASE_URL` set, Django uses `db.sqlite3` locally. Local
+development should explicitly set `DJANGO_DEBUG=True`; it defaults to `False`
+to fail closed for deployments.
 
 Run the application checks and tests:
 
@@ -150,6 +157,7 @@ Important settings include:
 | `POSTGRES_DB` | PostgreSQL database name for Compose |
 | `POSTGRES_USER` | PostgreSQL username for Compose |
 | `POSTGRES_PASSWORD` | PostgreSQL password for Compose |
+| `REDIS_PASSWORD` | Required Redis authentication password for Compose |
 | `CELERY_BROKER_URL` | Redis broker URL |
 | `CELERY_RESULT_BACKEND` | Celery result backend URL |
 | `PLAID_CLIENT_ID` | Plaid client ID |

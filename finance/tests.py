@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from unittest.mock import patch
 
@@ -188,6 +188,7 @@ class BudgetingTests(TestCase):
         self.assertEqual(envelope.remaining_amount, Decimal("100.00"))
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class FinanceViewTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
@@ -310,6 +311,7 @@ class FinanceViewTests(TestCase):
         self.assertContains(response, "Rent")
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class PlaidIntegrationTests(TestCase):
     def setUp(self):
         self.item = PlaidItem.objects.create(
