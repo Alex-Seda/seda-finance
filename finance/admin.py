@@ -9,6 +9,7 @@ from .models import (
     Envelope,
     Paycheck,
     PaycheckAllocation,
+    PlaidItem,
     RecurringBill,
     Rule,
     Transaction,
@@ -96,3 +97,17 @@ class BudgetSettingsAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return not BudgetSettings.objects.exists()
+
+
+@admin.register(PlaidItem)
+class PlaidItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "item_id",
+        "institution_name",
+        "status",
+        "last_synced_at",
+        "last_sync_error",
+    )
+    list_filter = ("status",)
+    search_fields = ("item_id", "institution_name")
+    readonly_fields = ("access_token_encrypted",)

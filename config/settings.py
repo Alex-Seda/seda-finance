@@ -99,3 +99,13 @@ LOGOUT_REDIRECT_URL = "login"
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
+CELERY_BEAT_SCHEDULE = {
+    "sync-plaid-items-every-six-hours": {
+        "task": "finance.tasks.sync_accounts",
+        "schedule": 60 * 60 * 6,
+    }
+}
+
+PLAID_CLIENT_ID = os.getenv("PLAID_CLIENT_ID", "")
+PLAID_SECRET = os.getenv("PLAID_SECRET", "")
+PLAID_ENV = os.getenv("PLAID_ENV", "sandbox")

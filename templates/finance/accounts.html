@@ -1,6 +1,33 @@
 {% extends "base.html" %}
 {% block title %}Accounts · Seda Finance{% endblock %}
 {% block content %}
-<div class="page-heading"><div><p class="eyebrow">Connected accounts</p><h1>Accounts</h1><p class="muted">Plaid connection and reconnect actions will appear here once integration is configured.</p></div></div>
-<div class="grid">{% for account in accounts %}<div class="card"><div class="row"><strong>{{ account.institution_name }}</strong><span class="status">{{ account.get_account_type_display }}</span></div><h2>{{ account.name }}{% if account.mask %} ····{{ account.mask }}{% endif %}</h2><strong class="balance">${{ account.current_balance|floatformat:2 }}</strong><small>Last synced: {{ account.last_synced_at|default:"Never" }}</small></div>{% empty %}<div class="empty">No accounts connected yet. Plaid Link will be added after credentials are configured.</div>{% endfor %}</div>
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+<div class="page-heading"><div><p class="eyebrow">Connected accounts</p><h1>Accounts</h1><p class="muted">Connect checking, savings, and credit-card accounts through Plaid.</p></div>{% if plaid_configured %}<button class="button" id="connect-plaid" type="button">Connect account</button>{% endif %}</div>
+{% for item in plaid_items %}<div class="message {% if item.status == 'login_required' or item.status == 'error' %}error{% endif %}"><strong>{{ item.institution_name|default:"Connected institution" }}</strong> · {{ item.get_status_display }}{% if item.last_sync_error %}<span> — {{ item.last_sync_error }}</span>{% endif %}{% if item.status == 'login_required' %}<p>Reconnect this institution in Plaid Link before syncing again.</p>{% elif item.status != 'syncing' %}<button class="button sync-button" data-item-id="{{ item.pk }}" type="button">Sync now</button>{% endif %}</div>{% endfor %}
+<div class="grid">{% for account in accounts %}<div class="card"><div class="row"><strong>{{ account.institution_name }}</strong><span class="status">{{ account.get_account_type_display }}</span></div><h2>{{ account.name }}{% if account.mask %} ····{{ account.mask }}{% endif %}</h2><strong class="balance">${{ account.current_balance|floatformat:2 }}</strong><small>Last synced: {% if account.plaid_item %}{{ account.plaid_item.last_synced_at|default:"Never" }}{% else %}Never{% endif %}</small></div>{% empty %}<div class="empty">No accounts connected yet.</div>{% endfor %}</div>
+{% if plaid_configured %}<script>
+(() => {
+  const csrf = "{{ csrf_token }}";
+  const post = (url, body) => fetch(url, {method: "POST", headers: {"X-CSRFToken": csrf}, body});
+  document.querySelector("#connect-plaid")?.addEventListener("click", async () => {
+    const tokenResponse = await fetch("{% url 'plaid-link-token' %}");
+    const tokenData = await tokenResponse.json();
+    if (!tokenResponse.ok) return alert(tokenData.error || "Unable to start Plaid Link.");
+    const handler = Plaid.create({
+      token: tokenData.link_token,
+      onSuccess: async (publicToken) => {
+        const response = await post("{% url 'plaid-exchange-token' %}", new URLSearchParams({public_token: publicToken}));
+        if (!response.ok) return alert((await response.json()).error || "Unable to connect account.");
+        window.location.reload();
+      }
+    });
+    handler.open();
+  });
+  document.querySelectorAll(".sync-button").forEach((button) => button.addEventListener("click", async () => {
+    const response = await post(`/accounts/plaid/${button.dataset.itemId}/sync/`);
+    if (!response.ok) return alert((await response.json()).error || "Unable to queue sync.");
+    window.location.reload();
+  }));
+})();
+</script>{% endif %}
 {% endblock %}

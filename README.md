@@ -2,7 +2,7 @@
 
 Seda Finance is a self-hosted personal finance application for consolidating bank and credit-card accounts, categorizing transactions, and managing a zero-based envelope budget.
 
-The project is currently an early-stage Django application. The web interface, budgeting data model, paycheck planning, recurring-bill planning, review queue, categorization rules, authentication, Docker Compose environment, migrations, and Django admin are in place. Plaid Link and live transaction synchronization are intentionally not included yet.
+The project is currently an early-stage Django application. The web interface, budgeting data model, paycheck planning, recurring-bill planning, review queue, categorization rules, authentication, Docker Compose environment, migrations, Django admin, and a Plaid Sandbox integration are in place. Production Plaid use and deployment hardening are not complete.
 
 ## Features
 
@@ -16,6 +16,10 @@ The project is currently an early-stage Django application. The web interface, b
 - Manual transaction classification for expenses, income, and transfers
 - Posted-only budget spending with pending-transaction cash forecasting
 - Auditable envelope allocation events
+- Plaid Sandbox Link flow with encrypted access tokens
+- Background Plaid transaction synchronization with cursor tracking
+- Soft-deletion of removed Plaid transactions
+- Account sync status and manual “Sync now” queueing
 - Configurable envelope rollover settings
 - Merchant categorization rules with suggest-only and auto-apply modes
 - Django authentication protecting all application pages
@@ -46,14 +50,11 @@ Implemented now:
 - Starter category migration
 - Django admin management for all current models
 - Automated finance tests for accounting calculations, validation, authentication, and core POST workflows
+- Fake-provider tests for token encryption, Plaid account/transaction sync, removals, and `ITEM_LOGIN_REQUIRED`
 
 Not implemented yet:
 
-- Plaid Link and token exchange
-- Encrypted Plaid access-token handling
-- Automatic account, balance, and transaction synchronization
-- Cursor-based Plaid add/update/remove reconciliation
-- Automatic transaction rule processing during sync
+- Automatic transaction rule processing during Plaid sync
 - Automatic transfer detection
 - Automatic paycheck matching
 - Automatic shortfall recommendations or surplus splitting
@@ -151,9 +152,10 @@ Important settings include:
 | `POSTGRES_PASSWORD` | PostgreSQL password for Compose |
 | `CELERY_BROKER_URL` | Redis broker URL |
 | `CELERY_RESULT_BACKEND` | Celery result backend URL |
-| `PLAID_CLIENT_ID` | Reserved for the future Plaid integration |
-| `PLAID_SECRET` | Reserved for the future Plaid integration |
-| `PLAID_ENV` | Reserved Plaid environment setting |
+| `PLAID_CLIENT_ID` | Plaid client ID |
+| `PLAID_SECRET` | Plaid API secret; keep it in `.env` and never commit it |
+| `PLAID_ENV` | Plaid environment, currently `sandbox` |
+| `PLAID_TOKEN_ENCRYPTION_KEY` | Optional dedicated Fernet key source; when empty, the access-token encryption key is derived from `DJANGO_SECRET_KEY` |
 
 ## First login and administration
 
@@ -182,7 +184,8 @@ The main application is at `/`. The Django admin is at `/admin/`. All finance pa
 7. **Categorize transactions.** Leave new transactions marked for review, then open `/review/` and classify selected items as expenses, income, or transfers. Expense items can be bulk-assigned to a category.
 8. **Add rules.** Open `/rules/` to create merchant matching rules. New rules default to suggest-only behavior.
 9. **Search activity.** Open `/transactions/` to search transaction history.
-10. **Manage accounts.** Open `/accounts/` for the cash/debt account overview. Account connection through Plaid is planned but not implemented.
+10. **Manage accounts.** Open `/accounts/` for the cash/debt account overview.
+11. **Connect Plaid Sandbox accounts.** Set `PLAID_CLIENT_ID`, `PLAID_SECRET`, and `PLAID_ENV=sandbox` in `.env`, restart the web and worker services, then use **Accounts → Connect account**. The initial three-month transaction history is queued in the background. Plaid items are scheduled for synchronization every six hours.
 
 ## Application URLs
 
@@ -214,14 +217,14 @@ requirements.txt        Python dependencies
 
 ## Current limitations
 
-- Plaid Link and encrypted Plaid access-token handling are not implemented.
-- Automatic Plaid transaction and balance synchronization is not implemented.
-- The Celery sync task is currently a placeholder.
-- Account and transaction creation is currently performed through Django admin.
+- Production Plaid credentials, webhook support, and live-bank validation are not implemented.
+- Automatic transaction rule processing during Plaid sync is not implemented.
+- Account and transaction creation is currently performed through Django admin unless connected through Plaid.
 - Two-factor authentication, production HTTPS configuration, and deployment hardening still need to be completed.
 - The application is designed for a single user in its current form.
 - The paycheck planner currently stores expected paychecks, allocations, recurring bills, and base-pay settings; automatic paycheck matching and cash-flow recommendations are still pending.
 - The current web UI exposes planning and review workflows, but creation and editing of accounts, paychecks, bills, budget periods, envelopes, and base-pay settings still happens through Django admin.
+- Plaid Link currently supports Sandbox account connection, three-month history requests, account/balance sync, cursor-based transaction adds and modifications, soft-deleted removals, manual sync queueing, and reconnect-required status. Webhooks, production credentials, and automatic rule application during sync are not implemented.
 
 ## Security notes
 

@@ -1,10 +1,13 @@
 from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.utils import timezone
 
 from .budgeting import (
     cash_balance,
@@ -21,10 +24,13 @@ from .models import (
     Category,
     Envelope,
     Paycheck,
+    PlaidItem,
     RecurringBill,
     Rule,
     Transaction,
 )
+from .plaid import PlaidClient, PlaidError, encrypt_access_token
+from .tasks import sync_accounts
 
 
 @login_required
@@ -187,7 +193,92 @@ def rules(request):
 
 @login_required
 def accounts(request):
-    return render(request, "finance/accounts.html", {"accounts": Account.objects.all()})
+    return render(
+        request,
+        "finance/accounts.html",
+        {
+            "accounts": Account.objects.select_related("plaid_item"),
+            "plaid_configured": bool(settings.PLAID_CLIENT_ID and settings.PLAID_SECRET),
+            "plaid_items": PlaidItem.objects.all(),
+        },
+    )
+
+
+@require_GET
+@login_required
+def plaid_link_token(request):
+    try:
+        data = PlaidClient().create_link_token(request.user.pk)
+    except PlaidError as exc:
+        return JsonResponse({"error": str(exc)}, status=503)
+    return JsonResponse({"link_token": data["link_token"]})
+
+
+@require_POST
+@login_required
+def plaid_exchange_token(request):
+    public_token = request.POST.get("public_token", "").strip()
+    if not public_token:
+        return JsonResponse({"error": "A Plaid public token is required."}, status=400)
+    try:
+        client = PlaidClient()
+        exchange = client.exchange_public_token(public_token)
+        access_token = exchange["access_token"]
+        item_id = exchange["item_id"]
+        item_data = client.get_item(access_token)
+        accounts_data = client.get_accounts(access_token)
+    except PlaidError as exc:
+        return JsonResponse({"error": str(exc)}, status=503)
+    item, _ = PlaidItem.objects.update_or_create(
+        item_id=item_id,
+        defaults={
+            "institution_name": (
+                item_data.get("item", {}).get("institution_id") or "Connected institution"
+            ),
+            "access_token_encrypted": encrypt_access_token(access_token),
+            "status": PlaidItem.Status.CONNECTED,
+            "last_sync_error": "",
+        },
+    )
+    for account_data in accounts_data.get("accounts", []):
+        Account.objects.update_or_create(
+            plaid_account_identifier=account_data["account_id"],
+            defaults={
+                "plaid_item": item,
+                "institution_name": item.institution_name,
+                "name": account_data["name"],
+                "mask": account_data.get("mask") or "",
+                "account_type": (
+                    "credit_card"
+                    if account_data.get("type") == "credit"
+                    else (
+                        "savings"
+                        if account_data.get("subtype") == "savings"
+                        else "checking"
+                    )
+                ),
+                "current_balance": account_data.get("balances", {}).get("current") or 0,
+                "available_balance": account_data.get("balances", {}).get("available"),
+                "plaid_access_token_encrypted": item.access_token_encrypted,
+            },
+        )
+    sync_accounts.delay(item.pk)
+    return JsonResponse({"item_id": item.pk, "status": "queued"})
+
+
+@require_POST
+@login_required
+def plaid_sync_now(request, item_id):
+    item = get_object_or_404(PlaidItem, pk=item_id)
+    if item.status == PlaidItem.Status.LOGIN_REQUIRED:
+        return JsonResponse(
+            {"error": "Reconnect this account before syncing again."},
+            status=409,
+        )
+    item.sync_requested_at = timezone.now()
+    item.save(update_fields=["sync_requested_at", "updated_at"])
+    sync_accounts.delay(item.pk)
+    return JsonResponse({"status": "queued"})
 
 
 @login_required

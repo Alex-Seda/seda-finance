@@ -20,8 +20,20 @@ class Account(models.Model):
         max_digits=12, decimal_places=2, null=True, blank=True
     )
     last_synced_at = models.DateTimeField(null=True, blank=True)
-    plaid_item_id = models.CharField(max_length=255, unique=True)
+    plaid_account_identifier = models.CharField(
+        db_column="plaid_item_id",
+        max_length=255,
+        unique=True,
+    )
     plaid_access_token_encrypted = models.BinaryField()
+    plaid_item = models.ForeignKey(
+        "PlaidItem",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="plaid_item_fk_id",
+        related_name="accounts",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -102,6 +114,8 @@ class Transaction(models.Model):
     notes = models.TextField(blank=True)
     excluded_from_budget = models.BooleanField(default=False)
     needs_review = models.BooleanField(default=True)
+    is_removed = models.BooleanField(default=False)
+    plaid_modified_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -111,6 +125,7 @@ class Transaction(models.Model):
             models.Index(fields=["date", "status"]),
             models.Index(fields=["needs_review", "category"]),
             models.Index(fields=["kind", "status", "date"]),
+            models.Index(fields=["is_removed", "date"]),
         ]
 
     def __str__(self):
@@ -405,3 +420,33 @@ class BudgetSettings(models.Model):
     def current(cls):
         settings, _ = cls.objects.get_or_create(pk=1)
         return settings
+
+
+class PlaidItem(models.Model):
+    class Status(models.TextChoices):
+        CONNECTED = "connected", "Connected"
+        SYNCING = "syncing", "Syncing"
+        LOGIN_REQUIRED = "login_required", "Reconnect required"
+        ERROR = "error", "Sync error"
+
+    item_id = models.CharField(max_length=255, unique=True)
+    institution_name = models.CharField(max_length=255, blank=True)
+    access_token_encrypted = models.BinaryField()
+    transactions_cursor = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.CONNECTED,
+    )
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    last_sync_started_at = models.DateTimeField(null=True, blank=True)
+    last_sync_error = models.TextField(blank=True)
+    sync_requested_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["institution_name", "item_id"]
+
+    def __str__(self):
+        return self.institution_name or self.item_id

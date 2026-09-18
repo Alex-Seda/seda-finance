@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from unittest.mock import patch
 
 from .budgeting import (
     expected_income,
@@ -25,7 +26,10 @@ from .models import (
     Paycheck,
     RecurringBill,
     Transaction,
+    PlaidItem,
 )
+from .plaid import decrypt_access_token, encrypt_access_token
+from .sync import sync_item
 
 
 class BudgetingTests(TestCase):
@@ -35,7 +39,7 @@ class BudgetingTests(TestCase):
             name="Checking",
             account_type=Account.AccountType.CHECKING,
             current_balance=Decimal("1000.00"),
-            plaid_item_id="item-checking",
+            plaid_account_identifier="item-checking",
             plaid_access_token_encrypted=b"encrypted",
         )
         self.card = Account.objects.create(
@@ -43,7 +47,7 @@ class BudgetingTests(TestCase):
             name="Card",
             account_type=Account.AccountType.CREDIT_CARD,
             current_balance=Decimal("250.00"),
-            plaid_item_id="item-card",
+            plaid_account_identifier="item-card",
             plaid_access_token_encrypted=b"encrypted",
         )
         self.category, _ = Category.objects.get_or_create(name="Groceries")
@@ -199,7 +203,7 @@ class FinanceViewTests(TestCase):
             name="Checking",
             account_type=Account.AccountType.CHECKING,
             current_balance=Decimal("1000.00"),
-            plaid_item_id="view-item",
+            plaid_account_identifier="view-item",
             plaid_access_token_encrypted=b"encrypted",
         )
         self.category = Category.objects.create(name="View groceries")
@@ -304,3 +308,134 @@ class FinanceViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "1250.00")
         self.assertContains(response, "Rent")
+
+
+class PlaidIntegrationTests(TestCase):
+    def setUp(self):
+        self.item = PlaidItem.objects.create(
+            item_id="item-1",
+            institution_name="Sandbox Bank",
+            access_token_encrypted=encrypt_access_token("access-sandbox"),
+        )
+
+    def test_access_tokens_round_trip_encrypted(self):
+        encrypted = encrypt_access_token("secret-token")
+        self.assertNotEqual(encrypted, b"secret-token")
+        self.assertEqual(decrypt_access_token(encrypted), "secret-token")
+
+    def test_sync_adds_accounts_and_transactions(self):
+        class FakeClient:
+            def get_accounts(self, access_token):
+                return {
+                    "accounts": [
+                        {
+                            "account_id": "account-1",
+                            "name": "Checking",
+                            "mask": "1234",
+                            "type": "depository",
+                            "subtype": "checking",
+                            "balances": {"current": 500, "available": 450},
+                        }
+                    ]
+                }
+
+            def sync_transactions(self, access_token, cursor):
+                return {
+                    "added": [
+                        {
+                            "transaction_id": "plaid-txn-1",
+                            "account_id": "account-1",
+                            "date": "2026-09-17",
+                            "name": "Market",
+                            "merchant_name": "Market",
+                            "amount": 42.50,
+                            "pending": False,
+                        },
+                        {
+                            "transaction_id": "plaid-income-1",
+                            "account_id": "account-1",
+                            "date": "2026-09-17",
+                            "name": "Employer",
+                            "amount": -1200,
+                            "pending": False,
+                        },
+                    ],
+                    "modified": [],
+                    "removed": [],
+                    "next_cursor": "cursor-1",
+                    "has_more": False,
+                }
+
+        result = sync_item(self.item, FakeClient())
+        self.assertNotIn("error", result)
+        self.assertEqual(self.item.transactions_cursor, "cursor-1")
+        self.assertEqual(self.item.status, PlaidItem.Status.CONNECTED)
+        self.assertEqual(Account.objects.get(plaid_account_identifier="account-1").current_balance, Decimal("500.00"))
+        self.assertEqual(
+            Transaction.objects.get(plaid_transaction_id="plaid-income-1").kind,
+            Transaction.Kind.INCOME,
+        )
+
+    def test_sync_soft_deletes_removed_transactions(self):
+        account = Account.objects.create(
+            institution_name="Sandbox Bank",
+            name="Checking",
+            account_type=Account.AccountType.CHECKING,
+            current_balance=Decimal("500.00"),
+            plaid_account_identifier="account-removed",
+            plaid_item=self.item,
+            plaid_access_token_encrypted=self.item.access_token_encrypted,
+        )
+        transaction = Transaction.objects.create(
+            plaid_transaction_id="removed-1",
+            account=account,
+            date=date(2026, 9, 1),
+            merchant_name="Removed",
+            amount=Decimal("10.00"),
+            status=Transaction.Status.POSTED,
+        )
+
+        class FakeClient:
+            def get_accounts(self, access_token):
+                return {"accounts": []}
+
+            def sync_transactions(self, access_token, cursor):
+                return {
+                    "added": [],
+                    "modified": [],
+                    "removed": [{"transaction_id": transaction.plaid_transaction_id}],
+                    "next_cursor": "cursor-removed",
+                    "has_more": False,
+                }
+
+        sync_item(self.item, FakeClient())
+        transaction.refresh_from_db()
+        self.assertTrue(transaction.is_removed)
+        self.assertFalse(transaction.needs_review)
+
+    def test_item_login_required_disables_future_sync(self):
+        class FakeClient:
+            def get_accounts(self, access_token):
+                from .plaid import PlaidError
+
+                raise PlaidError("Reconnect required", "ITEM_LOGIN_REQUIRED")
+
+        result = sync_item(self.item, FakeClient())
+        self.item.refresh_from_db()
+        self.assertEqual(result["error_code"], "ITEM_LOGIN_REQUIRED")
+        self.assertEqual(self.item.status, PlaidItem.Status.LOGIN_REQUIRED)
+
+    @patch("finance.views.PlaidClient")
+    @patch("finance.views.sync_accounts")
+    def test_link_token_endpoint_returns_token(self, sync_mock, client_class):
+        client_class.return_value.create_link_token.return_value = {
+            "link_token": "link-sandbox-token"
+        }
+        user = get_user_model().objects.create_user(
+            username="plaid-user",
+            password="strong-test-password",
+        )
+        self.client.force_login(user)
+        response = self.client.get(reverse("plaid-link-token"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["link_token"], "link-sandbox-token")
