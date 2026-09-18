@@ -2,6 +2,15 @@
 
 Seda Finance is a self-hosted personal finance application for consolidating bank and credit-card accounts, categorizing transactions, and managing a zero-based envelope budget.
 
+Start here:
+
+- [Developer outline](developer-outline.md) — repository structure, data flow,
+  models, views, processing, debugging, and contribution workflow.
+- [User guide](user-guide.md) — setup, account connection, budgeting,
+  paycheck planning, and mid-month adjustments.
+- [Deployment guide](deployment-guide.md) — secure server setup, Docker,
+  HTTPS, backups, updates, and operations.
+
 The project is currently an early-stage Django application. The web interface, budgeting data model, paycheck planning, recurring-bill planning, review queue, categorization rules, authentication, Docker Compose environment, migrations, Django admin, and a Plaid Sandbox integration are in place. Production Plaid use and deployment hardening are not complete.
 
 ## Features
