@@ -123,7 +123,7 @@ Compose runs:
 - `beat`: Celery scheduler.
 
 PostgreSQL and Redis are internal Compose services and are not published on
-host ports. The web service is published on port 8000 for local use. A real
+host ports. The web service is bound to `127.0.0.1:8000` for local use. A real
 deployment should put Gunicorn behind an HTTPS reverse proxy.
 
 ### Important settings
@@ -142,12 +142,14 @@ deployment should put Gunicorn behind an HTTPS reverse proxy.
 | `PLAID_CLIENT_ID` | Plaid API client ID |
 | `PLAID_SECRET` | Plaid API secret |
 | `PLAID_ENV` | `sandbox`, `development`, or `production` |
-| `PLAID_TOKEN_ENCRYPTION_KEY` | Optional dedicated key source for Plaid tokens |
+| `PLAID_TOKEN_ENCRYPTION_KEY` | Dedicated Plaid token key; required when `DJANGO_DEBUG=False` |
 
-The current Plaid encryption helper derives a Fernet key from
-`PLAID_TOKEN_ENCRYPTION_KEY` when present, otherwise from `DJANGO_SECRET_KEY`.
-Production should use a separate dedicated encryption key and should fail
-closed when required secrets are absent.
+The Plaid encryption helper derives a Fernet key only from
+`PLAID_TOKEN_ENCRYPTION_KEY`. Production fails closed when either the Django
+signing secret or the dedicated Plaid key is absent. Debug-mode local
+development may generate ephemeral secrets, which means encrypted local Plaid
+tokens are not expected to survive a process restart unless explicit keys are
+configured.
 
 ## 5. URL and view reference
 

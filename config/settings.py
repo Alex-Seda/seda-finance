@@ -1,13 +1,30 @@
 import os
+import secrets
 from pathlib import Path
 from urllib.parse import urlparse
+
+from django.core.exceptions import ImproperlyConfigured
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "development-only-key")
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
-FORCE_HTTPS = os.getenv("DJANGO_FORCE_HTTPS", "False").lower() == "true"
+configured_secret_key = os.getenv("DJANGO_SECRET_KEY")
+if configured_secret_key:
+    SECRET_KEY = configured_secret_key
+elif DEBUG:
+    SECRET_KEY = secrets.token_urlsafe(64)
+else:
+    raise ImproperlyConfigured(
+        "DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is False."
+    )
+
+force_https_value = os.getenv("DJANGO_FORCE_HTTPS")
+FORCE_HTTPS = (
+    force_https_value.lower() == "true"
+    if force_https_value is not None
+    else not DEBUG
+)
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
@@ -117,3 +134,10 @@ CELERY_BEAT_SCHEDULE = {
 PLAID_CLIENT_ID = os.getenv("PLAID_CLIENT_ID", "")
 PLAID_SECRET = os.getenv("PLAID_SECRET", "")
 PLAID_ENV = os.getenv("PLAID_ENV", "sandbox")
+PLAID_TOKEN_ENCRYPTION_KEY = os.getenv("PLAID_TOKEN_ENCRYPTION_KEY")
+if not PLAID_TOKEN_ENCRYPTION_KEY and not DEBUG:
+    raise ImproperlyConfigured(
+        "PLAID_TOKEN_ENCRYPTION_KEY must be set when DJANGO_DEBUG is False."
+    )
+if not PLAID_TOKEN_ENCRYPTION_KEY:
+    PLAID_TOKEN_ENCRYPTION_KEY = secrets.token_urlsafe(64)

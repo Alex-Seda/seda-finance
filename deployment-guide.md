@@ -32,9 +32,9 @@ Gunicorn in the web container :8000
 ```
 
 Only the reverse proxy should be internet-facing. PostgreSQL and Redis should
-remain on the private Docker network. The current `compose.yaml` publishes the
-web service on port 8000 for local/VPS proxying, but does not publish database
-or Redis ports.
+remain on the private Docker network. The current `compose.yaml` binds the web
+service to `127.0.0.1:8000` for local/VPS proxying, but does not publish
+database or Redis ports.
 
 ## 2. Prepare the server
 
@@ -147,10 +147,10 @@ PLAID_TOKEN_ENCRYPTION_KEY=<dedicated-secret-key-source>
 
 ### Plaid encryption key
 
-The current code accepts `PLAID_TOKEN_ENCRYPTION_KEY` as a secret source and
-derives a Fernet key from it. Use a separate value from
-`DJANGO_SECRET_KEY`. Preserve this secret securely: losing it prevents the
-application from decrypting stored Plaid access tokens.
+The application derives a Fernet key only from `PLAID_TOKEN_ENCRYPTION_KEY`.
+Use a separate value from `DJANGO_SECRET_KEY`. This key is mandatory when
+`DJANGO_DEBUG=False`. Preserve it securely: losing it prevents the application
+from decrypting stored Plaid access tokens.
 
 The current implementation does not provide a key-rotation command. Document
 the key location and backup procedure before storing real Plaid credentials.
@@ -267,9 +267,9 @@ docker compose run --rm web python manage.py test finance
 
 `check --deploy` may report expected warnings until the reverse proxy, domain,
 and production secret policy are fully configured. Do not ignore warnings
-without documenting why they are acceptable. `DJANGO_FORCE_HTTPS=True` is
-required for the deployed application; local HTTP development should leave it
-unset or set it to `False`.
+without documenting why they are acceptable. `DJANGO_FORCE_HTTPS=True` is required for the deployed application; if it is
+unset, it defaults to enabled whenever `DJANGO_DEBUG=False`. Local HTTP
+development should set `DJANGO_DEBUG=True` and leave `DJANGO_FORCE_HTTPS=False`.
 
 ## 9. Start the application
 

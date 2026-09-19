@@ -161,7 +161,7 @@ Important settings include:
 
 | Variable | Purpose |
 | --- | --- |
-| `DJANGO_SECRET_KEY` | Django signing and cryptographic secret |
+| `DJANGO_SECRET_KEY` | Required signing secret when `DJANGO_DEBUG=False`; never use a shared/default value |
 | `DJANGO_DEBUG` | Enables or disables Django debug mode |
 | `DJANGO_FORCE_HTTPS` | Redirects HTTP to HTTPS and enables secure cookies/HSTS |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated allowed hostnames |
@@ -175,7 +175,7 @@ Important settings include:
 | `PLAID_CLIENT_ID` | Plaid client ID |
 | `PLAID_SECRET` | Plaid API secret; keep it in `.env` and never commit it |
 | `PLAID_ENV` | Plaid environment, currently `sandbox` |
-| `PLAID_TOKEN_ENCRYPTION_KEY` | Optional dedicated Fernet key source; when empty, the access-token encryption key is derived from `DJANGO_SECRET_KEY` |
+| `PLAID_TOKEN_ENCRYPTION_KEY` | Dedicated Plaid token encryption key; required when `DJANGO_DEBUG=False` |
 
 ## First login and administration
 

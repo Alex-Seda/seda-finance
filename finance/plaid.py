@@ -1,6 +1,5 @@
 import base64
 import hashlib
-import os
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -18,8 +17,7 @@ class PlaidError(Exception):
 
 
 def _fernet():
-    configured_key = os.getenv("PLAID_TOKEN_ENCRYPTION_KEY")
-    source = configured_key or settings.SECRET_KEY
+    source = settings.PLAID_TOKEN_ENCRYPTION_KEY
     key = base64.urlsafe_b64encode(hashlib.sha256(source.encode()).digest())
     return Fernet(key)
 
