@@ -21,6 +21,7 @@ from .models import (
     Account,
     BudgetAllocation,
     BudgetPeriod,
+    BudgetSettings,
     Category,
     Envelope,
     Paycheck,
@@ -28,6 +29,13 @@ from .models import (
     RecurringBill,
     Rule,
     Transaction,
+)
+from .forms import (
+    BudgetPeriodForm,
+    BudgetSettingsForm,
+    EnvelopeForm,
+    PaycheckForm,
+    RecurringBillForm,
 )
 from .plaid import PlaidClient, PlaidError, encrypt_access_token
 from .tasks import sync_accounts
@@ -320,3 +328,43 @@ def planning(request):
             ),
         },
     )
+
+
+@require_http_methods(["GET", "POST"])
+@login_required
+def setup(request):
+    user = request.user
+    settings_object = BudgetSettings.objects.get_or_create(owner=user)[0]
+    forms = {
+        "period_form": BudgetPeriodForm(user=user),
+        "envelope_form": EnvelopeForm(user=user),
+        "paycheck_form": PaycheckForm(user=user),
+        "bill_form": RecurringBillForm(user=user),
+        "settings_form": BudgetSettingsForm(instance=settings_object, user=user),
+    }
+    if request.method == "POST":
+        action_map = {
+            "period": ("period_form", BudgetPeriodForm),
+            "envelope": ("envelope_form", EnvelopeForm),
+            "paycheck": ("paycheck_form", PaycheckForm),
+            "bill": ("bill_form", RecurringBillForm),
+            "settings": ("settings_form", BudgetSettingsForm),
+        }
+        form_key, form_class = action_map.get(
+            request.POST.get("action"), (None, None)
+        )
+        if form_key is None:
+            messages.error(request, "Choose a valid setup action.")
+        else:
+            instance = settings_object if form_key == "settings_form" else None
+            form = form_class(
+                request.POST,
+                user=user,
+                **({"instance": instance} if instance is not None else {}),
+            )
+            forms[form_key] = form
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Setup changes saved.")
+                return redirect("setup")
+    return render(request, "finance/setup.html", forms)

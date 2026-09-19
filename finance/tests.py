@@ -245,6 +245,7 @@ class FinanceViewTests(TestCase):
             "transactions",
             "budget",
             "planning",
+            "setup",
             "rules",
             "accounts",
         ):
@@ -332,6 +333,91 @@ class FinanceViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "1250.00")
         self.assertContains(response, "Rent")
+
+    def test_setup_page_creates_owner_scoped_budget_period(self):
+        response = self.client.post(
+            reverse("setup"),
+            {
+                "action": "period",
+                "start_date": "2026-10-01",
+                "end_date": "2026-10-31",
+                "reset_day": "1",
+            },
+        )
+
+        self.assertRedirects(response, reverse("setup"))
+        self.assertTrue(
+            BudgetPeriod.objects.filter(
+                owner=self.user,
+                start_date=date(2026, 10, 1),
+            ).exists()
+        )
+
+    def test_setup_rejects_invalid_period_dates(self):
+        response = self.client.post(
+            reverse("setup"),
+            {
+                "action": "period",
+                "start_date": "2026-10-31",
+                "end_date": "2026-10-01",
+                "reset_day": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "end date must be on or after")
+        self.assertFalse(
+            BudgetPeriod.objects.filter(owner=self.user, start_date=date(2026, 10, 31)).exists()
+        )
+
+    def test_setup_cannot_create_envelope_with_another_users_category(self):
+        other_user = get_user_model().objects.create_user(
+            username="setup-other-user",
+            password="test-password",
+        )
+        other_category = Category.objects.filter(owner=other_user).first()
+        period = BudgetPeriod.objects.create(
+            owner=self.user,
+            start_date=date(2026, 10, 1),
+            end_date=date(2026, 10, 31),
+        )
+
+        response = self.client.post(
+            reverse("setup"),
+            {
+                "action": "envelope",
+                "budget_period": period.pk,
+                "category": other_category.pk,
+                "assigned_amount": "100.00",
+                "rollover_amount": "0.00",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            Envelope.objects.filter(
+                owner=self.user, budget_period=period
+            ).exists()
+        )
+
+    def test_setup_saves_planning_settings_for_current_user(self):
+        response = self.client.post(
+            reverse("setup"),
+            {
+                "action": "settings",
+                "base_paycheck_amount": "1200.00",
+                "surplus_responsibilities_percent": "50",
+                "surplus_savings_percent": "30",
+                "surplus_discretionary_percent": "20",
+                "savings_floor": "500.00",
+            },
+        )
+
+        self.assertRedirects(response, reverse("setup"))
+        self.assertEqual(
+            BudgetSettings.objects.get(owner=self.user).base_paycheck_amount,
+            Decimal("1200.00"),
+        )
 
     def test_new_users_receive_private_finance_defaults(self):
         self.assertEqual(

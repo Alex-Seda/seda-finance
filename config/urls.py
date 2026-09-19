@@ -17,6 +17,7 @@ urlpatterns = [
     path("transactions/", views.transactions, name="transactions"),
     path("budget/", views.budget, name="budget"),
     path("planning/", views.planning, name="planning"),
+    path("setup/", views.setup, name="setup"),
     path("rules/", views.rules, name="rules"),
     path("accounts/", views.accounts, name="accounts"),
     path("accounts/plaid/link-token/", views.plaid_link_token, name="plaid-link-token"),

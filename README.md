@@ -67,7 +67,6 @@ Not implemented yet:
 - Automatic transfer detection
 - Automatic paycheck matching
 - Automatic shortfall recommendations or surplus splitting
-- Complete in-app onboarding and forms for creating paychecks, bills, and budget periods
 - Two-factor authentication
 - Production HTTPS, Nginx, backups, monitoring, and deployment hardening
 

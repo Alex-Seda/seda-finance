@@ -46,29 +46,24 @@ The top navigation contains:
 
 The review badge shows how many transactions currently need attention.
 
-## 3. Initial setup through Admin
+## 3. Initial setup
 
 When a new Django user is created, Seda Finance automatically provisions the
-starter categories and that user's budget settings. Financial records created
-afterward must belong to that user.
+starter categories and that user's budget settings. Open **Setup** from the
+navigation to configure the rest of your plan:
 
-Several setup actions are currently performed in Django admin.
+1. Create a budget period.
+2. Create envelopes for the categories you budget.
+3. Add expected paychecks.
+4. Add recurring bills.
+5. Configure base-pay and surplus settings.
+6. Open **Accounts** to connect Plaid accounts.
 
-Open:
+All setup forms are authenticated and owner-scoped. The server chooses the
+current user rather than accepting an owner ID from the browser.
 
-```text
-/admin/
-```
-
-Recommended first-time order:
-
-1. Review starter categories.
-2. Create a budget period.
-3. Create envelopes for the categories you budget.
-4. Add expected paychecks.
-5. Add recurring bills.
-6. Configure base-pay and surplus settings.
-7. Connect accounts through the Accounts page.
+Administrators can still use `/admin/` for bulk maintenance and account
+creation.
 
 ## 4. Starter categories
 
@@ -87,10 +82,8 @@ The first finance migration creates:
 - Investing
 - Other
 
-To customize them:
-
-1. Open `/admin/`.
-2. Select **Finance → Categories**.
+To customize them, an administrator can open `/admin/` and select
+**Finance → Categories**.
 3. Rename or add categories.
 4. Set **Is envelope** for categories that should participate in the budget.
 5. Enable **Rollover enabled** for categories such as Car Repairs or Savings

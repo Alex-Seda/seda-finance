@@ -316,9 +316,10 @@ Open:
 https://finance.example.com/admin/
 ```
 
-Use the admin to create initial categories, budget periods, envelopes,
-paychecks, recurring bills, and budget settings. The user-facing onboarding
-workflow is not yet complete.
+New users receive starter categories and planning settings automatically. After
+sign-in, use the in-app **Setup** page to create budget periods, envelopes,
+paychecks, recurring bills, and planning settings. Use the admin for initial
+user creation, category maintenance, and operational support.
 
 ## 11. Connect Plaid safely
 

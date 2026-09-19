@@ -18,9 +18,11 @@ Seda Finance is a self-hosted Django personal-finance application for:
 
 The application now supports multiple users at the data model and view-query
 layers. Every financial record has an owner and authenticated finance views
-scope reads and writes to the current user. Plaid support is implemented for
-Sandbox and is not yet production-ready. Two-factor authentication, automatic
-rule processing during sync, and complete in-app onboarding are still pending.
+scope reads and writes to the current user. The `/setup/` workspace provides
+owner-scoped forms for budget periods, envelopes, paychecks, recurring bills,
+and planning settings. Plaid support is implemented for Sandbox and is not yet
+production-ready. Two-factor authentication and automatic rule processing
+during sync are still pending.
 
 ## 2. Repository map
 
@@ -33,6 +35,7 @@ config/
 
 finance/
   models.py         Database schema and model-level calculations
+  forms.py          Owner-scoped onboarding and planning forms
   views.py          Authenticated HTML views and JSON endpoints
   budgeting.py      Query-based financial calculations
   plaid.py          Plaid HTTP client and token encryption
@@ -75,6 +78,10 @@ Browser
 All finance pages currently use Django's `login_required` decorator. Form
 submissions use normal Django POST requests with CSRF tokens. Plaid connection
 and manual sync use JSON endpoints called by browser JavaScript.
+
+The Setup page uses an action field to route each POST to a specific
+owner-scoped ModelForm. Foreign-key querysets are restricted to the current
+user, and ownership is assigned server-side before saving.
 
 ### Background Plaid sync
 
@@ -163,6 +170,7 @@ Routes are declared in `config/urls.py` and implemented in
 | `/transactions/` | `transactions` | Searches merchant, notes, and account name |
 | `/budget/` | `budget` | Displays and updates envelope assignments |
 | `/planning/` | `planning` | Displays paychecks, bills, and envelope balances |
+| `/setup/` | `setup` | Creates owner-scoped budget periods, envelopes, paychecks, bills, and settings |
 | `/rules/` | `rules` | Creates and lists categorization rules |
 | `/accounts/` | `accounts` | Displays Plaid items and local accounts |
 | `/accounts/plaid/link-token/` | `plaid_link_token` | Returns a Plaid Link token |
@@ -481,11 +489,9 @@ docker compose ps
 - Existing records are assigned to the first application user by migration;
   the migration stops rather than guessing if legacy financial data exists
   without any user.
-- User-facing setup remains incomplete even though new users receive starter
-  categories and budget settings automatically.
 - Plaid sync has no retry/backoff or locking.
 - Plaid sync does not apply categorization rules.
 - Transaction list has no pagination or advanced filters.
-- Many setup workflows remain admin-only.
+- Category maintenance and user creation remain admin-oriented.
 - Removed transactions are not explicitly excluded from every query.
 - Production reverse proxy and backup/restore processes are not included.

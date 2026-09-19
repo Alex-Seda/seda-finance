@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Setup | Seda Finance{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="eyebrow">Getting started</p>
+    <h1>Set up your finances</h1>
+    <p class="muted">Create your budget structure, planning inputs, and recurring obligations. All records belong to your account.</p>
+  </div>
+</div>
+
+<div class="setup-grid">
+  <section class="card">
+    <h2>Budget period</h2>
+    <form method="post">
+      {% csrf_token %}<input type="hidden" name="action" value="period">
+      {{ period_form.as_p }}
+      <button class="button" type="submit">Create budget period</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Envelope</h2>
+    <form method="post">
+      {% csrf_token %}<input type="hidden" name="action" value="envelope">
+      {{ envelope_form.as_p }}
+      <button class="button" type="submit">Create envelope</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Expected paycheck</h2>
+    <form method="post">
+      {% csrf_token %}<input type="hidden" name="action" value="paycheck">
+      {{ paycheck_form.as_p }}
+      <button class="button" type="submit">Add paycheck</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Recurring bill</h2>
+    <form method="post">
+      {% csrf_token %}<input type="hidden" name="action" value="bill">
+      {{ bill_form.as_p }}
+      <button class="button" type="submit">Add recurring bill</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Planning settings</h2>
+    <form method="post">
+      {% csrf_token %}<input type="hidden" name="action" value="settings">
+      {{ settings_form.as_p }}
+      <button class="button" type="submit">Save settings</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Connect accounts</h2>
+    <p>Connect Plaid accounts and review their sync status from the Accounts page.</p>
+    <a class="button secondary" href="{% url 'accounts' %}">Open accounts</a>
+  </section>
+</div>
+{% endblock %}
