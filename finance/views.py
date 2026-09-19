@@ -35,12 +35,13 @@ from .tasks import sync_accounts
 
 @login_required
 def dashboard(request):
-    recent_transactions = Transaction.objects.select_related("account", "category")[:8]
-    review_count = Transaction.objects.filter(needs_review=True).count()
-    current_period = BudgetPeriod.objects.first()
-    account_balance = cash_balance()
-    safe_to_spend = safe_cash()
-    forecast_cash = pending_forecast()
+    user = request.user
+    recent_transactions = Transaction.objects.filter(owner=user).select_related("account", "category")[:8]
+    review_count = Transaction.objects.filter(owner=user, needs_review=True).count()
+    current_period = BudgetPeriod.objects.filter(owner=user).first()
+    account_balance = cash_balance(user)
+    safe_to_spend = safe_cash(user)
+    forecast_cash = pending_forecast(user)
     envelopes = (
         Envelope.objects.select_related("category", "budget_period")
         .filter(budget_period=current_period)
@@ -53,11 +54,11 @@ def dashboard(request):
         "account_balance": account_balance,
         "safe_cash": safe_to_spend,
         "forecast_cash": forecast_cash,
-        "pending_outflows": pending_outflows(),
+        "pending_outflows": pending_outflows(user),
         "current_period": current_period,
         "ready_to_assign": ready_to_assign(current_period) if current_period else Decimal("0"),
         "expected_income": (
-            expected_income(current_period.start_date, current_period.end_date)
+            expected_income(user, current_period.start_date, current_period.end_date)
             if current_period
             else Decimal("0")
         ),
@@ -68,7 +69,7 @@ def dashboard(request):
 @require_http_methods(["GET", "POST"])
 @login_required
 def review_queue(request):
-    categories = Category.objects.filter(is_active=True)
+    categories = Category.objects.filter(owner=request.user, is_active=True)
     if request.method == "POST":
         transaction_ids = request.POST.getlist("transaction_ids")
         category_id = request.POST.get("category")
@@ -77,14 +78,16 @@ def review_queue(request):
         if kind == Transaction.Kind.EXPENSE and category is None:
             messages.error(request, "Choose a category for expense transactions.")
             return redirect("review-queue")
-        Transaction.objects.filter(pk__in=transaction_ids).update(
+        Transaction.objects.filter(owner=request.user, pk__in=transaction_ids).update(
             category=category if kind == Transaction.Kind.EXPENSE else None,
             kind=kind,
             needs_review=False,
         )
         messages.success(request, f"{len(transaction_ids)} transaction(s) categorized.")
         return redirect("review-queue")
-    transactions = Transaction.objects.filter(needs_review=True).select_related("account", "category")
+    transactions = Transaction.objects.filter(
+        owner=request.user, needs_review=True
+    ).select_related("account", "category")
     return render(request, "finance/review_queue.html", {
         "transactions": transactions,
         "categories": categories,
@@ -94,7 +97,9 @@ def review_queue(request):
 @login_required
 def transactions(request):
     query = request.GET.get("q", "").strip()
-    transaction_list = Transaction.objects.select_related("account", "category")
+    transaction_list = Transaction.objects.filter(
+        owner=request.user
+    ).select_related("account", "category")
     if query:
         transaction_list = transaction_list.filter(
             Q(merchant_name__icontains=query)
@@ -110,7 +115,7 @@ def transactions(request):
 @require_http_methods(["GET", "POST"])
 @login_required
 def budget(request):
-    period = BudgetPeriod.objects.first()
+    period = BudgetPeriod.objects.filter(owner=request.user).first()
     if request.method == "POST":
         if not period:
             messages.error(request, "Create a budget period before assigning envelope amounts.")
@@ -138,6 +143,7 @@ def budget(request):
                 difference = envelope.assigned_amount - previous_amount
                 if difference:
                     BudgetAllocation.objects.create(
+                        owner=request.user,
                         budget_period=period,
                         category=envelope.category,
                         amount=difference,
@@ -153,7 +159,7 @@ def budget(request):
             "period": period,
             "envelopes": envelopes,
             "expected_income": (
-                expected_income(period.start_date, period.end_date)
+                expected_income(request.user, period.start_date, period.end_date)
                 if period
                 else Decimal("0")
             ),
@@ -169,23 +175,24 @@ def budget(request):
 @require_http_methods(["GET", "POST"])
 @login_required
 def rules(request):
-    categories = Category.objects.filter(is_active=True)
-    accounts = Account.objects.all()
+    categories = Category.objects.filter(owner=request.user, is_active=True)
+    accounts = Account.objects.filter(owner=request.user)
     if request.method == "POST":
         category = get_object_or_404(categories, pk=request.POST.get("category"))
         Rule.objects.create(
+            owner=request.user,
             name=request.POST["name"],
             merchant_pattern=request.POST["merchant_pattern"],
             merchant_match_type=request.POST.get("merchant_match_type", Rule.MerchantMatchType.CONTAINS),
             behavior=request.POST.get("behavior", Rule.Behavior.SUGGEST_ONLY),
             category=category,
-            account=Account.objects.filter(pk=request.POST.get("account")).first()
+            account=accounts.filter(pk=request.POST.get("account")).first()
             if request.POST.get("account") else None,
         )
         messages.success(request, "Rule created.")
         return redirect("rules")
     return render(request, "finance/rules.html", {
-        "rules": Rule.objects.select_related("category", "account"),
+        "rules": Rule.objects.filter(owner=request.user).select_related("category", "account"),
         "categories": categories,
         "accounts": accounts,
     })
@@ -197,9 +204,9 @@ def accounts(request):
         request,
         "finance/accounts.html",
         {
-            "accounts": Account.objects.select_related("plaid_item"),
+            "accounts": Account.objects.filter(owner=request.user).select_related("plaid_item"),
             "plaid_configured": bool(settings.PLAID_CLIENT_ID and settings.PLAID_SECRET),
-            "plaid_items": PlaidItem.objects.all(),
+            "plaid_items": PlaidItem.objects.filter(owner=request.user),
         },
     )
 
@@ -229,21 +236,34 @@ def plaid_exchange_token(request):
         accounts_data = client.get_accounts(access_token)
     except PlaidError as exc:
         return JsonResponse({"error": str(exc)}, status=503)
-    item, _ = PlaidItem.objects.update_or_create(
-        item_id=item_id,
-        defaults={
-            "institution_name": (
-                item_data.get("item", {}).get("institution_id") or "Connected institution"
-            ),
-            "access_token_encrypted": encrypt_access_token(access_token),
-            "status": PlaidItem.Status.CONNECTED,
-            "last_sync_error": "",
-        },
+    item = PlaidItem.objects.filter(item_id=item_id).first()
+    if item and item.owner_id != request.user.id:
+        return JsonResponse(
+            {"error": "This Plaid item is already connected to another user."},
+            status=409,
+        )
+    if item is None:
+        item = PlaidItem(item_id=item_id, owner=request.user)
+    item.institution_name = (
+        item_data.get("item", {}).get("institution_id") or "Connected institution"
     )
+    item.access_token_encrypted = encrypt_access_token(access_token)
+    item.status = PlaidItem.Status.CONNECTED
+    item.last_sync_error = ""
+    item.save()
     for account_data in accounts_data.get("accounts", []):
+        account = Account.objects.filter(
+            plaid_account_identifier=account_data["account_id"]
+        ).first()
+        if account and account.owner_id != request.user.id:
+            return JsonResponse(
+                {"error": "This Plaid account is already connected to another user."},
+                status=409,
+            )
         Account.objects.update_or_create(
             plaid_account_identifier=account_data["account_id"],
             defaults={
+                "owner": request.user,
                 "plaid_item": item,
                 "institution_name": item.institution_name,
                 "name": account_data["name"],
@@ -269,7 +289,7 @@ def plaid_exchange_token(request):
 @require_POST
 @login_required
 def plaid_sync_now(request, item_id):
-    item = get_object_or_404(PlaidItem, pk=item_id)
+    item = get_object_or_404(PlaidItem, pk=item_id, owner=request.user)
     if item.status == PlaidItem.Status.LOGIN_REQUIRED:
         return JsonResponse(
             {"error": "Reconnect this account before syncing again."},
@@ -283,9 +303,9 @@ def plaid_sync_now(request, item_id):
 
 @login_required
 def planning(request):
-    period = BudgetPeriod.objects.first()
-    paychecks = Paycheck.objects.all()[:8]
-    bills = RecurringBill.objects.filter(is_active=True)
+    period = BudgetPeriod.objects.filter(owner=request.user).first()
+    paychecks = Paycheck.objects.filter(owner=request.user)[:8]
+    bills = RecurringBill.objects.filter(owner=request.user, is_active=True)
     return render(
         request,
         "finance/planning.html",
@@ -294,7 +314,7 @@ def planning(request):
             "paychecks": paychecks,
             "bills": bills,
             "expected_income": (
-                expected_income(period.start_date, period.end_date)
+                expected_income(request.user, period.start_date, period.end_date)
                 if period
                 else Decimal("0")
             ),

@@ -6,6 +6,10 @@ from django.db.models import Q, Sum
 
 
 class Account(models.Model):
+    owner = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, related_name="finance_accounts"
+    )
+
     class AccountType(models.TextChoices):
         CHECKING = "checking", "Checking"
         SAVINGS = "savings", "Savings"
@@ -53,7 +57,10 @@ class Account(models.Model):
 
 
 class Category(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    owner = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, related_name="finance_categories"
+    )
+    name = models.CharField(max_length=100)
     is_envelope = models.BooleanField(default=True)
     rollover_enabled = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -61,12 +68,22 @@ class Category(models.Model):
     class Meta:
         ordering = ["name"]
         verbose_name_plural = "categories"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "name"],
+                name="unique_category_per_owner",
+            )
+        ]
 
     def __str__(self):
         return self.name
 
 
 class Transaction(models.Model):
+    owner = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, related_name="finance_transactions"
+    )
+
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         POSTED = "posted", "Posted"
@@ -133,12 +150,21 @@ class Transaction(models.Model):
 
 
 class BudgetPeriod(models.Model):
-    start_date = models.DateField(unique=True)
+    owner = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, related_name="finance_budget_periods"
+    )
+    start_date = models.DateField()
     end_date = models.DateField()
     reset_day = models.PositiveSmallIntegerField(default=1)
 
     class Meta:
         ordering = ["-start_date"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "start_date"],
+                name="unique_budget_period_per_owner",
+            )
+        ]
 
     def __str__(self):
         return f"{self.start_date} to {self.end_date}"
@@ -146,6 +172,7 @@ class BudgetPeriod(models.Model):
     @property
     def posted_income(self):
         total = Transaction.objects.filter(
+            owner=self.owner,
             date__gte=self.start_date,
             date__lte=self.end_date,
             status=Transaction.Status.POSTED,
@@ -165,6 +192,9 @@ class BudgetPeriod(models.Model):
 
 
 class Envelope(models.Model):
+    owner = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, related_name="finance_envelopes"
+    )
     budget_period = models.ForeignKey(
         BudgetPeriod, on_delete=models.CASCADE, related_name="envelopes"
     )
@@ -195,6 +225,7 @@ class Envelope(models.Model):
     @property
     def spent_amount(self):
         total = self.category.transactions.filter(
+            owner=self.owner,
             date__gte=self.budget_period.start_date,
             date__lte=self.budget_period.end_date,
             excluded_from_budget=False,
@@ -216,6 +247,10 @@ class Envelope(models.Model):
 
 
 class Rule(models.Model):
+    owner = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, related_name="finance_rules"
+    )
+
     class MerchantMatchType(models.TextChoices):
         CONTAINS = "contains", "Contains"
         EXACT = "exact", "Exact"
@@ -267,6 +302,10 @@ class Rule(models.Model):
 class Paycheck(models.Model):
     """An expected paycheck used for planning before income is received."""
 
+    owner = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, related_name="finance_paychecks"
+    )
+
     class Status(models.TextChoices):
         EXPECTED = "expected", "Expected"
         RECEIVED = "received", "Received"
@@ -305,6 +344,11 @@ class Paycheck(models.Model):
 
 
 class PaycheckAllocation(models.Model):
+    owner = models.ForeignKey(
+        "auth.User",
+        on_delete=models.CASCADE,
+        related_name="finance_paycheck_allocations",
+    )
     paycheck = models.ForeignKey(
         Paycheck, on_delete=models.CASCADE, related_name="allocations"
     )
@@ -334,6 +378,9 @@ class PaycheckAllocation(models.Model):
 
 
 class RecurringBill(models.Model):
+    owner = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, related_name="finance_recurring_bills"
+    )
     name = models.CharField(max_length=150)
     category = models.ForeignKey(
         Category, on_delete=models.PROTECT, related_name="recurring_bills"
@@ -371,6 +418,10 @@ class RecurringBill(models.Model):
 class BudgetAllocation(models.Model):
     """An auditable allocation event for a monthly envelope."""
 
+    owner = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, related_name="finance_budget_allocations"
+    )
+
     budget_period = models.ForeignKey(
         BudgetPeriod, on_delete=models.CASCADE, related_name="allocation_events"
     )
@@ -387,6 +438,10 @@ class BudgetAllocation(models.Model):
 
 class BudgetSettings(models.Model):
     """Single-user settings for conservative paycheck planning."""
+
+    owner = models.OneToOneField(
+        "auth.User", on_delete=models.CASCADE, related_name="finance_budget_settings"
+    )
 
     base_paycheck_amount = models.DecimalField(
         max_digits=12,
@@ -417,12 +472,16 @@ class BudgetSettings(models.Model):
             raise ValidationError("Surplus allocation percentages must total 100.")
 
     @classmethod
-    def current(cls):
-        settings, _ = cls.objects.get_or_create(pk=1)
+    def current(cls, user):
+        settings, _ = cls.objects.get_or_create(owner=user)
         return settings
 
 
 class PlaidItem(models.Model):
+    owner = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, related_name="finance_plaid_items"
+    )
+
     class Status(models.TextChoices):
         CONNECTED = "connected", "Connected"
         SYNCING = "syncing", "Syncing"

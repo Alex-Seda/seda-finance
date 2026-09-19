@@ -16,10 +16,11 @@ Seda Finance is a self-hosted Django personal-finance application for:
 - Planning around biweekly paychecks and recurring bills.
 - Showing cash and safe-to-spend estimates.
 
-The current application is single-user in its data model. Plaid support is
-implemented for Sandbox and is not yet production-ready. Two-factor
-authentication, multi-user ownership, automatic rule processing during sync,
-and complete in-app onboarding are still pending.
+The application now supports multiple users at the data model and view-query
+layers. Every financial record has an owner and authenticated finance views
+scope reads and writes to the current user. Plaid support is implemented for
+Sandbox and is not yet production-ready. Two-factor authentication, automatic
+rule processing during sync, and complete in-app onboarding are still pending.
 
 ## 2. Repository map
 
@@ -100,8 +101,10 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-Local development can use SQLite when `DATABASE_URL` is absent. Set
-`DJANGO_DEBUG=True` for plain HTTP local development.
+Local development can use SQLite when `DATABASE_URL` is absent. Keep
+`DJANGO_FORCE_HTTPS` unset or set it to `False` for plain HTTP local
+development. Set `DJANGO_FORCE_HTTPS=True` only when Django is behind an HTTPS
+reverse proxy.
 
 ### Docker Compose
 
@@ -113,7 +116,7 @@ docker compose up --build
 
 Compose runs:
 
-- `web`: Gunicorn plus migrations.
+- `web`: Gunicorn plus migrations and static-file collection.
 - `db`: PostgreSQL.
 - `redis`: Password-protected Redis.
 - `worker`: Celery worker.
@@ -129,6 +132,7 @@ deployment should put Gunicorn behind an HTTPS reverse proxy.
 |---|---|
 | `DJANGO_SECRET_KEY` | Django signing key; must be unique and secret |
 | `DJANGO_DEBUG` | Defaults to `False`; use `True` only for local development |
+| `DJANGO_FORCE_HTTPS` | Enables HTTPS redirects, secure cookies, and HSTS |
 | `DJANGO_ALLOWED_HOSTS` | Hostnames accepted by Django |
 | `DATABASE_URL` | Optional PostgreSQL connection URL |
 | `POSTGRES_*` | Compose database configuration |
@@ -471,9 +475,12 @@ docker compose ps
 
 ## 12. Known architectural limitations
 
-- Records are not associated with an application user.
 - 2FA is not enforced.
-- Plaid account ownership is not isolated.
+- Existing records are assigned to the first application user by migration;
+  the migration stops rather than guessing if legacy financial data exists
+  without any user.
+- User-facing setup remains incomplete even though new users receive starter
+  categories and budget settings automatically.
 - Plaid sync has no retry/backoff or locking.
 - Plaid sync does not apply categorization rules.
 - Transaction list has no pagination or advanced filters.

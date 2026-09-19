@@ -34,7 +34,12 @@ from .sync import sync_item
 
 class BudgetingTests(TestCase):
     def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="budget-user",
+            password="test-password",
+        )
         self.cash = Account.objects.create(
+            owner=self.user,
             institution_name="Test Bank",
             name="Checking",
             account_type=Account.AccountType.CHECKING,
@@ -43,6 +48,7 @@ class BudgetingTests(TestCase):
             plaid_access_token_encrypted=b"encrypted",
         )
         self.card = Account.objects.create(
+            owner=self.user,
             institution_name="Test Bank",
             name="Card",
             account_type=Account.AccountType.CREDIT_CARD,
@@ -50,8 +56,11 @@ class BudgetingTests(TestCase):
             plaid_account_identifier="item-card",
             plaid_access_token_encrypted=b"encrypted",
         )
-        self.category, _ = Category.objects.get_or_create(name="Groceries")
+        self.category, _ = Category.objects.get_or_create(
+            owner=self.user, name="Groceries"
+        )
         self.period = BudgetPeriod.objects.create(
+            owner=self.user,
             start_date=date(2026, 9, 1),
             end_date=date(2026, 9, 30),
         )
@@ -59,6 +68,7 @@ class BudgetingTests(TestCase):
     def transaction(self, **overrides):
         values = {
             "plaid_transaction_id": f"txn-{Transaction.objects.count()}",
+            "owner": self.user,
             "account": self.cash,
             "date": date(2026, 9, 10),
             "merchant_name": "Test merchant",
@@ -81,7 +91,7 @@ class BudgetingTests(TestCase):
             status=Transaction.Status.PENDING,
         )
         self.assertEqual(
-            posted_expenses(self.period.start_date, self.period.end_date),
+            posted_expenses(self.user, self.period.start_date, self.period.end_date),
             Decimal("25.00"),
         )
         self.assertEqual(self.period.envelopes.count(), 0)
@@ -96,9 +106,9 @@ class BudgetingTests(TestCase):
             account=self.card,
             status=Transaction.Status.PENDING,
         )
-        self.assertEqual(pending_outflows(), Decimal("40.00"))
-        self.assertEqual(safe_cash(), Decimal("960.00"))
-        self.assertEqual(pending_forecast(), Decimal("960.00"))
+        self.assertEqual(pending_outflows(self.user), Decimal("40.00"))
+        self.assertEqual(safe_cash(self.user), Decimal("960.00"))
+        self.assertEqual(pending_forecast(self.user), Decimal("960.00"))
 
     def test_ready_to_assign_uses_posted_income_and_assignments(self):
         self.transaction(
@@ -107,6 +117,7 @@ class BudgetingTests(TestCase):
             merchant_name="Paycheck",
         )
         envelope = Envelope.objects.create(
+            owner=self.user,
             budget_period=self.period,
             category=self.category,
             assigned_amount=Decimal("200.00"),
@@ -116,15 +127,17 @@ class BudgetingTests(TestCase):
 
     def test_expected_paychecks_support_variable_pay(self):
         Paycheck.objects.create(
+            owner=self.user,
             pay_date=date(2026, 9, 4),
             expected_amount=Decimal("1200.00"),
         )
         Paycheck.objects.create(
+            owner=self.user,
             pay_date=date(2026, 9, 18),
             expected_amount=Decimal("1350.00"),
         )
         self.assertEqual(
-            expected_income(date(2026, 9, 1), date(2026, 9, 30)),
+            expected_income(self.user, date(2026, 9, 1), date(2026, 9, 30)),
             Decimal("2550.00"),
         )
 
@@ -149,6 +162,7 @@ class BudgetingTests(TestCase):
 
     def test_received_paycheck_uses_received_amount(self):
         paycheck = Paycheck.objects.create(
+            owner=self.user,
             pay_date=date(2026, 9, 4),
             expected_amount=Decimal("1200.00"),
             received_amount=Decimal("1150.00"),
@@ -158,18 +172,20 @@ class BudgetingTests(TestCase):
 
     def test_upcoming_bill_reserves_clamp_day_to_short_month(self):
         RecurringBill.objects.create(
+            owner=self.user,
             name="Month-end bill",
             category=self.category,
             expected_amount=Decimal("75.00"),
             due_day=31,
         )
         self.assertEqual(
-            upcoming_bill_reserves(date(2026, 2, 1), date(2026, 2, 28)),
+            upcoming_bill_reserves(self.user, date(2026, 2, 1), date(2026, 2, 28)),
             Decimal("75.00"),
         )
 
     def test_transfer_and_income_do_not_reduce_envelope(self):
         envelope = Envelope.objects.create(
+            owner=self.user,
             budget_period=self.period,
             category=self.category,
             assigned_amount=Decimal("100.00"),
@@ -200,6 +216,7 @@ class FinanceViewTests(TestCase):
             password="strong-test-password",
         )
         self.account = Account.objects.create(
+            owner=self.user,
             institution_name="Test Bank",
             name="Checking",
             account_type=Account.AccountType.CHECKING,
@@ -207,12 +224,14 @@ class FinanceViewTests(TestCase):
             plaid_account_identifier="view-item",
             plaid_access_token_encrypted=b"encrypted",
         )
-        self.category = Category.objects.create(name="View groceries")
+        self.category = Category.objects.create(owner=self.user, name="View groceries")
         self.period = BudgetPeriod.objects.create(
+            owner=self.user,
             start_date=date(2026, 9, 1),
             end_date=date(2026, 9, 30),
         )
         self.envelope = Envelope.objects.create(
+            owner=self.user,
             budget_period=self.period,
             category=self.category,
             assigned_amount=Decimal("300.00"),
@@ -235,6 +254,7 @@ class FinanceViewTests(TestCase):
 
     def test_dashboard_displays_safe_cash_and_ready_to_assign(self):
         Transaction.objects.create(
+            owner=self.user,
             plaid_transaction_id="dashboard-pending",
             account=self.account,
             date=date(2026, 9, 10),
@@ -273,6 +293,7 @@ class FinanceViewTests(TestCase):
 
     def test_review_queue_can_classify_transfer_without_category(self):
         transaction = Transaction.objects.create(
+            owner=self.user,
             plaid_transaction_id="review-transfer",
             account=self.account,
             date=date(2026, 9, 10),
@@ -296,10 +317,12 @@ class FinanceViewTests(TestCase):
 
     def test_planning_page_lists_paychecks_and_bills(self):
         Paycheck.objects.create(
+            owner=self.user,
             pay_date=date(2026, 9, 18),
             expected_amount=Decimal("1250.00"),
         )
         RecurringBill.objects.create(
+            owner=self.user,
             name="Rent",
             category=self.category,
             expected_amount=Decimal("900.00"),
@@ -310,11 +333,90 @@ class FinanceViewTests(TestCase):
         self.assertContains(response, "1250.00")
         self.assertContains(response, "Rent")
 
+    def test_new_users_receive_private_finance_defaults(self):
+        self.assertEqual(
+            Category.objects.filter(owner=self.user).count(),
+            13,
+        )
+        self.assertTrue(BudgetSettings.objects.filter(owner=self.user).exists())
+
+    def test_finance_pages_do_not_expose_another_users_records(self):
+        other_user = get_user_model().objects.create_user(
+            username="other-user",
+            password="test-password",
+        )
+        other_account = Account.objects.create(
+            owner=other_user,
+            institution_name="Other Bank",
+            name="Other Checking",
+            account_type=Account.AccountType.CHECKING,
+            current_balance=Decimal("9000.00"),
+            plaid_account_identifier="other-item",
+            plaid_access_token_encrypted=b"encrypted",
+        )
+        Transaction.objects.create(
+            owner=other_user,
+            plaid_transaction_id="other-transaction",
+            account=other_account,
+            date=date(2026, 9, 10),
+            merchant_name="Private merchant",
+            amount=Decimal("9000.00"),
+            status=Transaction.Status.POSTED,
+        )
+
+        response = self.client.get(reverse("transactions"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Private merchant")
+        self.assertNotContains(response, "9000.00")
+
+    def test_review_queue_cannot_update_another_users_transaction(self):
+        other_user = get_user_model().objects.create_user(
+            username="review-other-user",
+            password="test-password",
+        )
+        other_account = Account.objects.create(
+            owner=other_user,
+            institution_name="Other Bank",
+            name="Other Checking",
+            account_type=Account.AccountType.CHECKING,
+            current_balance=Decimal("100.00"),
+            plaid_account_identifier="review-other-item",
+            plaid_access_token_encrypted=b"encrypted",
+        )
+        transaction = Transaction.objects.create(
+            owner=other_user,
+            plaid_transaction_id="review-other-transaction",
+            account=other_account,
+            date=date(2026, 9, 10),
+            merchant_name="Other merchant",
+            amount=Decimal("25.00"),
+            status=Transaction.Status.POSTED,
+        )
+
+        response = self.client.post(
+            reverse("review-queue"),
+            {
+                "transaction_ids": [transaction.pk],
+                "kind": Transaction.Kind.TRANSFER,
+                "category": "",
+            },
+        )
+
+        self.assertRedirects(response, reverse("review-queue"))
+        transaction.refresh_from_db()
+        self.assertTrue(transaction.needs_review)
+
 
 @override_settings(SECURE_SSL_REDIRECT=False)
 class PlaidIntegrationTests(TestCase):
     def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="plaid-user",
+            password="test-password",
+        )
         self.item = PlaidItem.objects.create(
+            owner=self.user,
             item_id="item-1",
             institution_name="Sandbox Bank",
             access_token_encrypted=encrypt_access_token("access-sandbox"),
@@ -380,6 +482,7 @@ class PlaidIntegrationTests(TestCase):
 
     def test_sync_soft_deletes_removed_transactions(self):
         account = Account.objects.create(
+            owner=self.user,
             institution_name="Sandbox Bank",
             name="Checking",
             account_type=Account.AccountType.CHECKING,
@@ -389,6 +492,7 @@ class PlaidIntegrationTests(TestCase):
             plaid_access_token_encrypted=self.item.access_token_encrypted,
         )
         transaction = Transaction.objects.create(
+            owner=self.user,
             plaid_transaction_id="removed-1",
             account=account,
             date=date(2026, 9, 1),
@@ -434,7 +538,7 @@ class PlaidIntegrationTests(TestCase):
             "link_token": "link-sandbox-token"
         }
         user = get_user_model().objects.create_user(
-            username="plaid-user",
+            username="plaid-link-user",
             password="strong-test-password",
         )
         self.client.force_login(user)

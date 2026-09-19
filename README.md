@@ -47,7 +47,7 @@ security hardening.
 Implemented now:
 
 - Authenticated dashboard, budget, planning, review, transaction, rules, and account pages
-- Single-user USD-oriented data model
+- Multi-user USD-oriented data model with per-user financial record ownership
 - Calendar-month budget periods
 - Posted income and Ready to Assign calculations
 - Expected paycheck records with received-versus-expected amounts
@@ -67,7 +67,7 @@ Not implemented yet:
 - Automatic transfer detection
 - Automatic paycheck matching
 - Automatic shortfall recommendations or surplus splitting
-- In-app onboarding and forms for creating accounts, paychecks, bills, and budget periods
+- Complete in-app onboarding and forms for creating paychecks, bills, and budget periods
 - Two-factor authentication
 - Production HTTPS, Nginx, backups, monitoring, and deployment hardening
 
@@ -88,9 +88,10 @@ docker compose up --build
 ```
 
 The application will be available at <http://127.0.0.1:8000/> for local
-testing. Production deployments must put Gunicorn behind an HTTPS reverse
-proxy. With `DJANGO_DEBUG=False`, HTTP requests redirect to HTTPS and secure
-cookies are enabled.
+testing. Local HTTP development does not require `DJANGO_DEBUG=True`; keep
+`DJANGO_FORCE_HTTPS=False` (or unset) so Django does not redirect the page or
+static assets to HTTPS. Production deployments must put Gunicorn behind an
+HTTPS reverse proxy and set `DJANGO_FORCE_HTTPS=True`.
 
 Compose starts:
 
@@ -134,8 +135,9 @@ python manage.py runserver
 ```
 
 With no `DATABASE_URL` set, Django uses `db.sqlite3` locally. Local
-development should explicitly set `DJANGO_DEBUG=True`; it defaults to `False`
-to fail closed for deployments.
+development can keep `DJANGO_DEBUG=False`; HTTPS enforcement is controlled
+separately with `DJANGO_FORCE_HTTPS`. Set `DJANGO_DEBUG=True` only when
+detailed development error pages are needed.
 
 Run the application checks and tests:
 
@@ -161,6 +163,7 @@ Important settings include:
 | --- | --- |
 | `DJANGO_SECRET_KEY` | Django signing and cryptographic secret |
 | `DJANGO_DEBUG` | Enables or disables Django debug mode |
+| `DJANGO_FORCE_HTTPS` | Redirects HTTP to HTTPS and enables secure cookies/HSTS |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated allowed hostnames |
 | `DATABASE_URL` | Optional PostgreSQL connection URL |
 | `POSTGRES_DB` | PostgreSQL database name for Compose |

@@ -14,10 +14,16 @@ def sync_item(item, client=None):
         access_token = decrypt_access_token(item.access_token_encrypted)
         account_response = client.get_accounts(access_token)
         for account_data in account_response.get("accounts", []):
+            existing_account = Account.objects.filter(
+                plaid_account_identifier=account_data["account_id"]
+            ).first()
+            if existing_account and existing_account.owner_id != item.owner_id:
+                raise PlaidError("Plaid account ownership conflict.")
             Account.objects.update_or_create(
                 plaid_item=item,
                 plaid_account_identifier=account_data["account_id"],
                 defaults={
+                    "owner": item.owner,
                     "institution_name": item.institution_name,
                     "name": account_data["name"],
                     "mask": account_data.get("mask") or "",
@@ -49,6 +55,7 @@ def sync_item(item, client=None):
                 from .models import Transaction
 
                 Transaction.objects.filter(
+                    owner=item.owner,
                     plaid_transaction_id__in=removed_ids
                 ).update(is_removed=True, needs_review=False)
             item.transactions_cursor = response.get("next_cursor", item.transactions_cursor)

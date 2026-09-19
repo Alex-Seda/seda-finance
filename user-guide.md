@@ -3,8 +3,9 @@
 This guide describes how to use the current application. It assumes the
 application is running and you already have a user account.
 
-The current release is designed for one user, uses USD-style amounts, and is
-still an early release. Plaid connection currently targets Plaid Sandbox.
+The current release supports separate user accounts with per-user financial
+data isolation, uses USD-style amounts, and is still an early release. Plaid
+connection currently targets Plaid Sandbox.
 
 ## 1. Sign in
 
@@ -27,6 +28,10 @@ If you cannot sign in:
 Two-factor authentication is not implemented yet. Do not expose the current
 application publicly until production security hardening is complete.
 
+Each user has a separate set of accounts, transactions, categories, budgets,
+paychecks, bills, rules, and Plaid connections. A user cannot access another
+user's records through the finance pages or POST actions.
+
 ## 2. Understand the main navigation
 
 The top navigation contains:
@@ -42,6 +47,10 @@ The top navigation contains:
 The review badge shows how many transactions currently need attention.
 
 ## 3. Initial setup through Admin
+
+When a new Django user is created, Seda Finance automatically provisions the
+starter categories and that user's budget settings. Financial records created
+afterward must belong to that user.
 
 Several setup actions are currently performed in Django admin.
 
@@ -480,4 +489,3 @@ The following features are not complete:
 - Automatic surplus/shortfall recommendations.
 - Advanced transaction filtering and pagination.
 - Full rollover-period automation.
-

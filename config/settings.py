@@ -7,6 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "development-only-key")
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
+FORCE_HTTPS = os.getenv("DJANGO_FORCE_HTTPS", "False").lower() == "true"
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
@@ -25,6 +26,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -91,13 +93,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SESSION_COOKIE_AGE = 1800
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
-SECURE_SSL_REDIRECT = not DEBUG
+SESSION_COOKIE_SECURE = FORCE_HTTPS
+CSRF_COOKIE_SECURE = FORCE_HTTPS
+SECURE_SSL_REDIRECT = FORCE_HTTPS
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
-SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
-SECURE_HSTS_PRELOAD = not DEBUG
+SECURE_HSTS_SECONDS = 31536000 if FORCE_HTTPS else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = FORCE_HTTPS
+SECURE_HSTS_PRELOAD = FORCE_HTTPS
 SECURE_CONTENT_TYPE_NOSNIFF = True
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "dashboard"

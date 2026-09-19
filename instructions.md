@@ -155,8 +155,9 @@ silently decided:
 
 - **Historical data**: How far back should the initial Plaid sync
   pull transactions? (Plaid typically offers up to 24 months.)
-- **Multiple budget "owners"**: Assumed single-user for v1 — confirm
-  this is right if this is meant to be shared with a partner/family.
+- **Multiple budget "owners"**: Financial records are now owned by the
+  authenticated Django user. Shared household budgeting is still a future
+  feature and would require explicit household membership rules.
 - **Recurring transaction / subscription detection**: Not specified —
   worth deciding if you want the app to flag recurring charges
   (subscriptions, etc.) automatically, or if that's out of scope.

@@ -5,7 +5,7 @@ Linux server. It assumes a single VPS, Docker Compose, a domain name, and
 administrator access. It is written for the current repository state.
 
 The application is not yet a fully hardened production product. In
-particular, 2FA, multi-user ownership, automated backups, monitoring, and an
+particular, 2FA, automated backups, monitoring, and an
 included Nginx configuration are not currently part of the repository. Treat
 the steps below as a strong deployment baseline, then verify the checklist
 before connecting real financial accounts.
@@ -131,6 +131,7 @@ Set at least:
 ```dotenv
 DJANGO_SECRET_KEY=<unique-long-random-value>
 DJANGO_DEBUG=False
+DJANGO_FORCE_HTTPS=True
 DJANGO_ALLOWED_HOSTS=finance.example.com
 
 POSTGRES_DB=seda_financial
@@ -266,7 +267,9 @@ docker compose run --rm web python manage.py test finance
 
 `check --deploy` may report expected warnings until the reverse proxy, domain,
 and production secret policy are fully configured. Do not ignore warnings
-without documenting why they are acceptable.
+without documenting why they are acceptable. `DJANGO_FORCE_HTTPS=True` is
+required for the deployed application; local HTTP development should leave it
+unset or set it to `False`.
 
 ## 9. Start the application
 
@@ -289,7 +292,7 @@ The expected state is:
 
 - PostgreSQL healthy.
 - Redis running.
-- Web running with Gunicorn.
+- Web running with Gunicorn and serving collected static assets.
 - Worker connected to Redis and ready.
 - Beat running and scheduling.
 
@@ -412,7 +415,8 @@ docker compose up -d
 docker compose ps
 ```
 
-The web container runs migrations before starting Gunicorn. For a higher-risk
+The web container runs migrations and collects static assets before starting
+Gunicorn. For a higher-risk
 migration:
 
 1. Take a verified database backup.
@@ -482,6 +486,7 @@ reconnect it. The worker intentionally skips items in that state.
 - [ ] Redis password is unique and random.
 - [ ] Plaid token encryption key is separate and backed up securely.
 - [ ] `DJANGO_DEBUG=False`.
+- [ ] `DJANGO_FORCE_HTTPS=True`.
 - [ ] `DJANGO_ALLOWED_HOSTS` contains only the deployment hostname.
 - [ ] HTTPS certificate is installed and renewal is tested.
 - [ ] Reverse proxy overwrites `X-Forwarded-Proto`.

@@ -113,9 +113,12 @@ def apply_transaction(item, payload):
     existing = Transaction.objects.filter(
         plaid_transaction_id=payload["transaction_id"]
     ).first()
+    if existing and existing.owner_id != item.owner_id:
+        raise PlaidError("Plaid transaction ownership conflict.")
     transaction, created = Transaction.objects.update_or_create(
         plaid_transaction_id=payload["transaction_id"],
         defaults={
+            "owner": item.owner,
             "account": account,
             "date": parse_plaid_date(payload["date"]),
             "merchant_name": payload.get("merchant_name") or payload.get("name") or "Unknown",
